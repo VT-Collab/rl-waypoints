@@ -1,21 +1,52 @@
-import numpy as np
-import torch
-from memory import MyMemory
-from sac import SAC
-# import gym_example
-import gym
+import argparse
 import datetime
+import gymnasium as gym
+import numpy as np
+import itertools
+import torch
+from sac import SAC
 from torch.utils.tensorboard import SummaryWriter
-from matplotlib import pyplot as plt
+from replay_memory import ReplayMemory
 import robosuite as suite
 from robosuite.controllers import load_controller_config
 
 
-# training parameters
-batch_size = 256
+parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
+parser.add_argument('--policy', default="Gaussian",
+                    help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
+parser.add_argument('--eval', type=bool, default=False,
+                    help='Evaluates a policy a policy every 10 episode (default: False)')
+parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
+                    help='discount factor for reward (default: 0.99)')
+parser.add_argument('--tau', type=float, default=0.005, metavar='G',
+                    help='target smoothing coefficient(τ) (default: 0.005)')
+parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
+                    help='learning rate (default: 0.0003)')
+parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
+                    help='Temperature parameter α determines the relative importance of the entropy\
+                            term against the reward (default: 0.2)')
+parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
+                    help='Automaically adjust α (default: False)')
+parser.add_argument('--batch_size', type=int, default=256, metavar='N',
+                    help='batch size (default: 256)')
+parser.add_argument('--num_steps', type=int, default=1000001, metavar='N',
+                    help='maximum number of steps (default: 1000000)')
+parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
+                    help='hidden size (default: 256)')
+parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
+                    help='model updates per simulator step (default: 1)')
+parser.add_argument('--start_steps', type=int, default=2000, metavar='N',
+                    help='Steps sampling random actions (default: 2000)')
+parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
+                    help='Value target update per no. of updates per step (default: 1)')
+parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
+                    help='size of replay buffer (default: 10000000)')
+parser.add_argument('--cuda', action="store_true",
+                    help='run on CUDA (default: False)')
+args = parser.parse_args()
 
-# # Environment
-# env = gym.make('reachdense-v0')
+# Environment
+# env = gym.make('Pendulum-v1', render_mode="None")
 
 # load default controller parameters for Operational Space Control (OSC)
 controller_config = load_controller_config(default_controller="OSC_POSE")
@@ -25,150 +56,82 @@ env = suite.make(
     env_name="Door", # try with other tasks like "Stack" and "Door"
     robots="Panda",  # try with other robots like "Sawyer" and "Jaco"
     controller_configs=controller_config,
-    has_renderer=True,
+    has_renderer=False,
     reward_shaping=True,
     control_freq=10,
     has_offscreen_renderer=False,
     use_camera_obs=False,
     initialization_noise=None,
+    use_latch=False,
 )
 
 # Agent
-agent = Method(traj_dim=12, state_dim=3)
+env_action_space = gym.spaces.Box(
+            low=-0.3,
+            high=+0.3,
+            shape=(3,),
+            dtype=np.float64)
+agent = SAC(3, env_action_space, args)
 
-# Memory
-memory = MyMemory()
-
-# Logger
-run_name = 'runs/ours_' + datetime.datetime.now().strftime("%H-%M")
-writer = SummaryWriter(run_name)
-
-
-# Main loop
-total_steps = 0
-for i_episode in range(1, 501):
-
-    # initialize variables
-    # timestep = 0
-    episode_reward = 0
-    done, truncated = False, False
-    obs = env.reset()
-    # xi = np.zeros((30,2))
-
-    # select optimal trajectory
-    traj = 1.0*(np.random.rand(12)-0.5)
-    if i_episode > 40:
-        traj = agent.traj_opt()
-    traj_mat = np.reshape(traj, (4,3)) + obs['robot0_eef_pos']
-  
-    # while not done and not truncated:
-    for t in range(200):
-
-        # train the models
-        if len(memory) > batch_size:
-            for _ in range(1):
-                critic_loss = agent.update_parameters(memory, batch_size)
-                writer.add_scalar('model/critic', critic_loss, total_steps)
-
-        widx = int(np.floor(t / 50))
-        error = traj_mat[widx, :] - obs['robot0_eef_pos']
-        action = list(error) + [0.]*4
-        action = 10*np.array(action)
-        # first 3 = xyz, last one is open close
-        obs, reward, done, info = env.step(action)
-        if reward >= 0.5:
-            print("success! It's open")
-
-        # # visualizer
-        # xi[timestep,:] = np.copy(state)
-        env.render()  # render on display
-
-        # take action and record results
-        # next_state, reward, done, truncated, _ = env.step(action)
-        # state = next_state
-        episode_reward += reward
-        # timestep += 1
-        total_steps += 1
-
-    memory.push(traj, episode_reward)
-    if episode_reward > agent.best_reward:
-        agent.set_init(traj, episode_reward)
-        print(episode_reward, "here")
-    writer.add_scalar('reward', episode_reward, i_episode)
-    print("Episode: {}, Reward: {}".format(i_episode, round(episode_reward, 2)))
-    
-    # if i_episode % 1 == 0:
-    #     plt.plot(xi[:,0], xi[:,1], 'bo-')
-    #     plt.plot(env.goal1[0], env.goal1[1], 'gs')
-    #     plt.plot(env.goal2[0], env.goal2[1], 'gs')
-    #     plt.axis([-1.5, 1.5, -1.5, 1.5])
-    #     plt.savefig(run_name + "/" + str(i_episode) + ".png")
-    #     plt.clf()
-
-
-
-# training parameters
-batch_size = 256
-
-# Environment
-env = gym.make('reachdense-v0')
-
-# Agent
-agent = SAC(state_dim=2, action_dim=2)
-
-# Memory
-memory = MyMemory()
-
-# Logger
+#Tensorboard
 run_name = 'runs/sac_' + datetime.datetime.now().strftime("%H-%M")
 writer = SummaryWriter(run_name)
 
+# Memory
+memory = ReplayMemory(args.replay_size)
 
-# Main loop
-total_steps = 0
-for i_episode in range(1, 501):
+# Training Loop
+total_numsteps = 0
+updates = 0
 
-    timestep = 0
+for i_episode in itertools.count(1):
     episode_reward = 0
+    episode_steps = 0
     done, truncated = False, False
-    state, _ = env.reset()
-    xi = np.zeros((30,2))
+    obs = env.reset()
 
-    while not done and not truncated:
+    for _ in range(100):
 
-        # train the models
-        if len(memory) > batch_size:
-            critic_1_loss, critic_2_loss, policy_loss = agent.update_parameters(memory, batch_size)
-            writer.add_scalar('model/critic1', critic_1_loss, total_steps)
-            writer.add_scalar('model/critic2', critic_2_loss, total_steps)
-            writer.add_scalar('model/actor', policy_loss, total_steps)
+        # env.render()    # toggle this when we don't want to render
 
-        # use policy to select action
-        # choose random action for a while
-        if i_episode < 40: 
-            action = env.action_space.sample()
-        # then use the learned policy
+        state = obs['robot0_eef_pos']
+        if args.start_steps > total_numsteps:
+            # action = env.action_space.sample()  # Sample random action
+            action = np.random.randn(3)
         else:
-            action = agent.select_action(state)
+            action = agent.select_action(state)  # Sample action from policy
 
-        # visualizer
-        xi[timestep,:] = np.copy(state)
+        if len(memory) > args.batch_size:
+            # Number of updates per step in environment
+            for i in range(args.updates_per_step):
+                # Update parameters of all the networks
+                critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
 
-        # transition to next_state and store data
-        next_state, reward, done, truncated, _ = env.step(action)
-        memory.push(state, action, reward, next_state, done)
-        state = next_state
+                writer.add_scalar('loss/critic_1', critic_1_loss, updates)
+                writer.add_scalar('loss/critic_2', critic_2_loss, updates)
+                writer.add_scalar('loss/policy', policy_loss, updates)
+                writer.add_scalar('loss/entropy_loss', ent_loss, updates)
+                writer.add_scalar('entropy_temprature/alpha', alpha, updates)
+                updates += 1
+
+        full_action = np.array(list(action) + [0.]*4)
+        obs, reward, done, _ = env.step(full_action) # Step
+        episode_steps += 1
+        total_numsteps += 1
         episode_reward += reward
-        timestep += 1
-        total_steps += 1
-        
+        next_state = obs['robot0_eef_pos']
+
+        # Ignore the "done" signal if it comes from hitting the time horizon.
+        # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
+        mask = 1 if episode_steps == 100 else float(not done)
+
+        memory.push(state, action, 100*reward, next_state, mask)
+
+        state = next_state
+
+    if total_numsteps > args.num_steps:
+        break
+
     writer.add_scalar('reward', episode_reward, i_episode)
-    print("Episode: {}, Reward: {}".format(i_episode, round(episode_reward, 2)))
-    
-    if i_episode % 1 == 0:
-        plt.plot(xi[:,0], xi[:,1], 'bo-')
-        plt.plot(env.goal1[0], env.goal1[1], 'gs')
-        plt.plot(env.goal2[0], env.goal2[1], 'gs')
-        plt.axis([-1.5, 1.5, -1.5, 1.5])
-        plt.savefig(run_name + "/" + str(i_episode) + ".png")
-        plt.clf()
+    print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+

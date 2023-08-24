@@ -16,7 +16,7 @@ class Method(object):
         self.hidden_size = 64
         self.n_models = 10
         self.models = []
-        self.n_inits = 20
+        self.n_inits = 5
 
         # Critic
         for _ in range(self.n_models):
@@ -26,7 +26,7 @@ class Method(object):
 
         # Actor
         self.best_reward = -np.inf
-        self.best_traj = 1.0*(np.random.rand(self.traj_dim)-0.5)
+        self.best_traj = 0.5*(np.random.rand(self.traj_dim)-0.5)
         self.lin_con = LinearConstraint(np.eye(self.traj_dim), -0.5, 0.5)
         self.reward_idx = None
 
@@ -36,7 +36,7 @@ class Method(object):
         xi, min_cost = None, np.inf
         self.reward_idx = np.random.randint(self.n_models)
         for idx in range(self.n_inits):
-            xi0 = np.copy(self.best_traj) + np.random.normal(0, 0.05, size=self.traj_dim)
+            xi0 = np.copy(self.best_traj) + np.random.normal(0, 0.1, size=self.traj_dim)
             res = minimize(self.get_cost, xi0, method='SLSQP', constraints=self.lin_con, options={'eps': 1e-6, 'maxiter': 1e6})
             if res.fun < min_cost:
                 min_cost = res.fun
