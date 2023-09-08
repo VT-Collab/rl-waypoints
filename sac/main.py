@@ -29,8 +29,6 @@ parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, meta
                     help='Automaically adjust α (default: False)')
 parser.add_argument('--batch_size', type=int, default=120, metavar='N',
                     help='batch size (default: 256)')
-parser.add_argument('--num_steps', type=int, default=1000001, metavar='N',
-                    help='maximum number of steps (default: 1000000)')
 parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
                     help='hidden size (default: 256)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
@@ -43,8 +41,6 @@ parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
 args = parser.parse_args()
 
-# Environment
-# env = gym.make('Pendulum-v1', render_mode="None")
 
 # load default controller parameters for Operational Space Control (OSC)
 controller_config = load_controller_config(default_controller="OSC_POSE")
@@ -82,35 +78,39 @@ memory = ReplayMemory(args.replay_size)
 total_numsteps = 0
 updates = 0
 
-for i_episode in itertools.count(1):
+for i_episode in range(500):
     episode_reward = 0
     episode_steps = 0
-    done, truncated = False, False
     obs = env.reset()
     robot_home = np.copy(obs['robot0_eef_pos'])
     waypoint = None
 
+    # number of waypoints
     for _ in range(4):
 
+        # initialize segment
         state = obs['robot0_eef_pos']
+        start_state = np.copy(state)
+        segment_reward = 0
+
+        # get segment waypoint
         if i_episode < 40:
             waypoint = 0.5*(np.random.rand(3)-0.5)
         else:
             waypoint = agent.select_action(state)
         waypoint_normalized = waypoint + robot_home
 
-        start_state = np.copy(state)
-        segment_reward = 0
-
+        # number of steps per waypoint
         for _ in range(25):
 
             # env.render()    # toggle this when we don't want to render
 
+            # compute action for low-level controller
             state = obs['robot0_eef_pos']
-
             error = waypoint_normalized - state
             full_action = np.array(list(10. * error) + [0.]*4)            
 
+            # train sac agent
             if len(memory) > args.batch_size:
                 # Number of updates per step in environment
                 for i in range(args.updates_per_step):
@@ -124,22 +124,22 @@ for i_episode in itertools.count(1):
                     writer.add_scalar('entropy_temprature/alpha', alpha, updates)
                     updates += 1
 
+            # take step and update
             obs, reward, done, _ = env.step(full_action)
             episode_steps += 1
             total_numsteps += 1
             episode_reward += reward
             segment_reward += reward
 
+        # get the final state of the segment (ideally at the waypoint)
         next_state = obs['robot0_eef_pos']
 
         # Ignore the "done" signal if it comes from hitting the time horizon.
         # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
-        mask = 1 if episode_steps == 100 else float(not done)
+        mask = 1.0 if episode_steps == 100 else float(not done)
 
+        # push to the memory buffer
         memory.push(start_state, waypoint, 100*segment_reward, next_state, mask)
-
-    if total_numsteps > args.num_steps:
-        break
 
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
