@@ -13,7 +13,7 @@ class Method(object):
         self.traj_dim = traj_dim
         self.lr = 0.001
         self.hidden_size = 64
-        self.n_models = 10
+        self.n_models = 30
         self.models = []
         self.n_inits = 5
 
@@ -33,7 +33,8 @@ class Method(object):
     # trajectory optimization over sampled reward function
     def traj_opt(self):
         xi_star, min_cost = None, np.inf
-        self.reward_idx = np.random.randint(self.n_models)
+        # self.reward_idx = np.random.randint(self.n_models)
+        self.reward_idx = np.random.choice(self.n_models, 3, replace=False)
         for idx in range(self.n_inits):
             if idx < 1:
                 xi0 = np.copy(self.best_traj)
@@ -55,8 +56,10 @@ class Method(object):
     # get cost for trajectory optimizer
     def get_cost(self, traj):
         traj = torch.FloatTensor(traj)
-        reward = self.get_reward(traj, self.reward_idx)
-        return -reward
+        reward = 0
+        for idx in self.reward_idx:
+            reward += self.get_reward(traj, idx)
+        return -reward / (1.0 * len(self.reward_idx))
 
 
     # get average and std reward across all models
