@@ -27,7 +27,7 @@ parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                             term against the reward (default: 0.2)')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
                     help='Automaically adjust α (default: False)')
-parser.add_argument('--batch_size', type=int, default=256, metavar='N',
+parser.add_argument('--batch_size', type=int, default=120, metavar='N',
                     help='batch size (default: 256)')
 parser.add_argument('--num_steps', type=int, default=1000001, metavar='N',
                     help='maximum number of steps (default: 1000000)')
@@ -35,8 +35,6 @@ parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
                     help='hidden size (default: 256)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
-parser.add_argument('--start_steps', type=int, default=2000, metavar='N',
-                    help='Steps sampling random actions (default: 2000)')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
 parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
@@ -67,8 +65,8 @@ env = suite.make(
 
 # Agent
 env_action_space = gym.spaces.Box(
-            low=-0.3,
-            high=+0.3,
+            low=-0.5,
+            high=+0.5,
             shape=(3,),
             dtype=np.float64)
 agent = SAC(3, env_action_space, args)
@@ -89,49 +87,59 @@ for i_episode in itertools.count(1):
     episode_steps = 0
     done, truncated = False, False
     obs = env.reset()
+    robot_home = np.copy(obs['robot0_eef_pos'])
+    waypoint = None
 
-    for _ in range(100):
-
-        # env.render()    # toggle this when we don't want to render
+    for _ in range(4):
 
         state = obs['robot0_eef_pos']
-        if args.start_steps > total_numsteps:
-            # action = env.action_space.sample()  # Sample random action
-            action = np.random.randn(3)
+        if i_episode < 40:
+            waypoint = 0.5*(np.random.rand(3)-0.5)
         else:
-            action = agent.select_action(state)  # Sample action from policy
+            waypoint = agent.select_action(state)
+        waypoint_normalized = waypoint + robot_home
 
-        if len(memory) > args.batch_size:
-            # Number of updates per step in environment
-            for i in range(args.updates_per_step):
-                # Update parameters of all the networks
-                critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
+        start_state = np.copy(state)
+        segment_reward = 0
 
-                writer.add_scalar('loss/critic_1', critic_1_loss, updates)
-                writer.add_scalar('loss/critic_2', critic_2_loss, updates)
-                writer.add_scalar('loss/policy', policy_loss, updates)
-                writer.add_scalar('loss/entropy_loss', ent_loss, updates)
-                writer.add_scalar('entropy_temprature/alpha', alpha, updates)
-                updates += 1
+        for _ in range(25):
 
-        full_action = np.array(list(action) + [0.]*4)
-        obs, reward, done, _ = env.step(full_action) # Step
-        episode_steps += 1
-        total_numsteps += 1
-        episode_reward += reward
+            # env.render()    # toggle this when we don't want to render
+
+            state = obs['robot0_eef_pos']
+
+            error = waypoint_normalized - state
+            full_action = np.array(list(10. * error) + [0.]*4)            
+
+            if len(memory) > args.batch_size:
+                # Number of updates per step in environment
+                for i in range(args.updates_per_step):
+                    # Update parameters of all the networks
+                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
+
+                    writer.add_scalar('loss/critic_1', critic_1_loss, updates)
+                    writer.add_scalar('loss/critic_2', critic_2_loss, updates)
+                    writer.add_scalar('loss/policy', policy_loss, updates)
+                    writer.add_scalar('loss/entropy_loss', ent_loss, updates)
+                    writer.add_scalar('entropy_temprature/alpha', alpha, updates)
+                    updates += 1
+
+            obs, reward, done, _ = env.step(full_action)
+            episode_steps += 1
+            total_numsteps += 1
+            episode_reward += reward
+            segment_reward += reward
+
         next_state = obs['robot0_eef_pos']
 
         # Ignore the "done" signal if it comes from hitting the time horizon.
         # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
         mask = 1 if episode_steps == 100 else float(not done)
 
-        memory.push(state, action, 100*reward, next_state, mask)
-
-        state = next_state
+        memory.push(start_state, waypoint, 100*segment_reward, next_state, mask)
 
     if total_numsteps > args.num_steps:
         break
 
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
-
