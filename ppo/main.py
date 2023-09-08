@@ -37,7 +37,7 @@ def train():
     action_std = 0.6                    # starting std for action distribution (Multivariate Normal)
     action_std_decay_rate = 0.05        # linearly decay action_std (action_std = action_std - action_std_decay_rate)
     min_action_std = 0.1                # minimum action_std (stop decay after action_std <= min_action_std)
-    action_std_decay_freq = int(2.5e5)  # action_std decay frequency (in num timesteps)
+    action_std_decay_freq = int(10000)  # action_std decay frequency (in num timesteps)
     #####################################################
 
     ## Note : print/log frequencies should be > than max_ep_len
@@ -76,8 +76,8 @@ def train():
         use_latch=False,
     )
     env_action_space = gym.spaces.Box(
-                low=-0.3,
-                high=+0.3,
+                low=-0.5,
+                high=+0.5,
                 shape=(3,),
                 dtype=np.float64)
 
@@ -153,63 +153,50 @@ def train():
     while time_step <= max_training_timesteps:
 
         obs = env.reset()
+        robot_home = np.copy(obs['robot0_eef_pos'])
+        waypoint = None
         current_ep_reward = 0
+        episode_steps = 0
 
-        for t in range(1, max_ep_len+1):
-
-            # env.render()    # toggle this when we don't want to render
+        for _ in range(4):
 
             # select action with policy
             state = obs['robot0_eef_pos']
-            action = ppo_agent.select_action(state)
-            full_action = np.array(list(action) + [0.]*4)
-            state, reward, done, _ = env.step(full_action)
+            waypoint = ppo_agent.select_action(state)
+            waypoint_normalized = waypoint + robot_home
+            segment_reward = 0
+
+            for _ in range(25):
+
+                # env.render()    # toggle this when we don't want to render
+
+                state = obs['robot0_eef_pos']
+
+                error = waypoint_normalized - state
+                full_action = np.array(list(10. * error) + [0.]*4)            
+
+                # update PPO agent
+                if time_step % update_timestep == 0:
+                    ppo_agent.update()
+
+                # if continuous action space; then decay action std of ouput action distribution
+                if has_continuous_action_space and time_step % action_std_decay_freq == 0:
+                    ppo_agent.decay_action_std(action_std_decay_rate, min_action_std)
+
+                obs, reward, done, _ = env.step(full_action)
+                time_step +=1
+                episode_steps +=1
+                segment_reward += reward
+                current_ep_reward += reward                
 
             # saving reward and is_terminals
-            ppo_agent.buffer.rewards.append(reward)
+            ppo_agent.buffer.rewards.append(segment_reward)
             ppo_agent.buffer.is_terminals.append(done)
 
-            time_step +=1
-            current_ep_reward += reward
-
-            # update PPO agent
-            if time_step % update_timestep == 0:
-                ppo_agent.update()
-
-            # if continuous action space; then decay action std of ouput action distribution
-            if has_continuous_action_space and time_step % action_std_decay_freq == 0:
-                ppo_agent.decay_action_std(action_std_decay_rate, min_action_std)
-
-            # printing average reward
-            if time_step % print_freq == 0:
-
-                # print average reward till last episode
-                print_avg_reward = print_running_reward / print_running_episodes
-                print_avg_reward = round(print_avg_reward, 2)
-
-                print("Episode : {} \t\t Timestep : {} \t\t Average Reward : {}".format(i_episode, time_step, print_avg_reward))
-
-                print_running_reward = 0
-                print_running_episodes = 0
-
-            # break; if the episode is over
-            if done:
-                break
-
         writer.add_scalar('reward', current_ep_reward, i_episode)
-        print_running_reward += current_ep_reward
-        print_running_episodes += 1
-
+        print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, time_step, episode_steps, round(current_ep_reward, 2)))
         i_episode += 1
 
-
-    # print total training time
-    print("============================================================================================")
-    end_time = datetime.datetime.now().replace(microsecond=0)
-    print("Started training at (GMT) : ", start_time)
-    print("Finished training at (GMT) : ", end_time)
-    print("Total training time  : ", end_time - start_time)
-    print("============================================================================================")
 
 
 if __name__ == '__main__':
