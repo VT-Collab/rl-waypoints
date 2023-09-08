@@ -7,16 +7,15 @@ from scipy.optimize import minimize, LinearConstraint
 
 
 class Method(object):
-    def __init__(self, traj_dim, state_dim):
+    def __init__(self, traj_dim):
 
         # hyperparameters   
         self.traj_dim = traj_dim
-        self.state_dim = state_dim
         self.lr = 0.001
         self.hidden_size = 64
         self.n_models = 10
         self.models = []
-        self.n_inits = 1
+        self.n_inits = 5
 
         # Critic
         for _ in range(self.n_models):
@@ -33,15 +32,18 @@ class Method(object):
 
     # trajectory optimization over sampled reward function
     def traj_opt(self):
-        xi, min_cost = None, np.inf
+        xi_star, min_cost = None, np.inf
         self.reward_idx = np.random.randint(self.n_models)
         for idx in range(self.n_inits):
-            xi0 = np.copy(self.best_traj) + 0 * np.random.normal(0, 0.1, size=self.traj_dim)
+            if idx < 1:
+                xi0 = np.copy(self.best_traj)
+            else:
+                xi0 = np.copy(self.best_traj) + np.random.normal(0, 0.1, size=self.traj_dim)
             res = minimize(self.get_cost, xi0, method='SLSQP', constraints=self.lin_con, options={'eps': 1e-6, 'maxiter': 1e6})
             if res.fun < min_cost:
                 min_cost = res.fun
-                traj_star = res.x
-        return res.x
+                xi_star = res.x
+        return xi_star
 
 
     # set the initial parameters for trajectory optimization

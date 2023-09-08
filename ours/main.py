@@ -30,7 +30,7 @@ env = suite.make(
 )
 
 # Agent
-agent = Method(traj_dim=12, state_dim=3)
+agent = Method(traj_dim=12)
 
 # Memory
 memory = MyMemory()
@@ -46,14 +46,16 @@ for i_episode in range(1, 501):
 
     # initialize variables
     episode_reward = 0
-    done, truncated = False, False
     obs = env.reset()
+    robot_home = np.copy(obs['robot0_eef_pos'])
 
     # select optimal trajectory
     traj = 0.5*(np.random.rand(12)-0.5)
     if i_episode > 40:
         traj = agent.traj_opt()
-    traj_mat = np.reshape(traj, (4,3)) + obs['robot0_eef_pos']
+    tx, ty, tz = agent.get_avg_reward(torch.FloatTensor(traj))
+    print(tx, ty, tz)
+    traj_mat = np.reshape(traj, (4,3)) + robot_home
   
     for timestep in range(100):
 
@@ -78,7 +80,6 @@ for i_episode in range(1, 501):
     memory.push(traj, episode_reward)
     if episode_reward > agent.best_reward:
         agent.set_init(traj, episode_reward)
-        print(episode_reward, "new best trajectory")
 
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, Reward: {}".format(i_episode, round(episode_reward, 2)))
