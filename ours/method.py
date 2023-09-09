@@ -14,6 +14,7 @@ class Method(object):
         self.lr = 0.001
         self.hidden_size = 64
         self.n_models = 30
+        self.n_samples = 5
         self.models = []
         self.n_inits = 5
 
@@ -33,13 +34,12 @@ class Method(object):
     # trajectory optimization over sampled reward function
     def traj_opt(self):
         xi_star, min_cost = None, np.inf
-        # self.reward_idx = np.random.randint(self.n_models)
-        self.reward_idx = np.random.choice(self.n_models, 3, replace=False)
+        self.reward_idx = np.random.choice(self.n_models, self.n_samples, replace=True)
         for idx in range(self.n_inits):
             if idx < 1:
                 xi0 = np.copy(self.best_traj)
             else:
-                xi0 = np.copy(self.best_traj) + np.random.normal(0, 0.1, size=self.traj_dim)
+                xi0 = np.copy(self.best_traj) + np.random.normal(0, 0.2, size=self.traj_dim)
             res = minimize(self.get_cost, xi0, method='SLSQP', constraints=self.lin_con, options={'eps': 1e-6, 'maxiter': 1e6})
             if res.fun < min_cost:
                 min_cost = res.fun
