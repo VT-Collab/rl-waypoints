@@ -7,6 +7,7 @@ import datetime
 from torch.utils.tensorboard import SummaryWriter
 import robosuite as suite
 from robosuite.controllers import load_controller_config
+import pickle
 
 
 # training parameters
@@ -38,6 +39,7 @@ memory = MyMemory()
 # Logger
 run_name = 'runs/ours_' + datetime.datetime.now().strftime("%H-%M")
 writer = SummaryWriter(run_name)
+reward_data = []
 
 
 # Main loop
@@ -53,8 +55,6 @@ for i_episode in range(1, 501):
     traj = 0.5*(np.random.rand(12)-0.5)
     if i_episode > 40:
         traj = agent.traj_opt()
-    tx, ty, tz = agent.get_avg_reward(torch.FloatTensor(traj))
-    print(tx, ty, tz)
     traj_mat = np.reshape(traj, (4,3)) + robot_home
   
     for timestep in range(100):
@@ -83,3 +83,5 @@ for i_episode in range(1, 501):
 
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, Reward: {}".format(i_episode, round(episode_reward, 2)))
+    reward_data.append(episode_reward)
+    pickle.dump(reward_data, open(run_name + "/rewards.pkl", "wb"))
