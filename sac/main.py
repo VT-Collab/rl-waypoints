@@ -9,6 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from replay_memory import ReplayMemory
 import robosuite as suite
 from robosuite.controllers import load_controller_config
+import pickle
 
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
@@ -65,11 +66,12 @@ env_action_space = gym.spaces.Box(
             high=+0.5,
             shape=(3,),
             dtype=np.float64)
-agent = SAC(3, env_action_space, args)
+agent = SAC(4, env_action_space, args)
 
 #Tensorboard
 run_name = 'runs/sac_' + datetime.datetime.now().strftime("%H-%M")
 writer = SummaryWriter(run_name)
+reward_data = []
 
 # Memory
 memory = ReplayMemory(args.replay_size)
@@ -89,7 +91,8 @@ for i_episode in range(500):
     for _ in range(4):
 
         # initialize segment
-        state = obs['robot0_eef_pos']
+        state = list(obs['robot0_eef_pos']) + [obs['hinge_qpos']]
+        state = np.array(state)
         start_state = np.copy(state)
         segment_reward = 0
 
@@ -106,8 +109,9 @@ for i_episode in range(500):
             # env.render()    # toggle this when we don't want to render
 
             # compute action for low-level controller
-            state = obs['robot0_eef_pos']
-            error = waypoint_normalized - state
+            state = list(obs['robot0_eef_pos']) + [obs['hinge_qpos']]
+            state = np.array(state)
+            error = waypoint_normalized - state[:3]
             full_action = np.array(list(10. * error) + [0.]*4)            
 
             # train sac agent
@@ -132,7 +136,8 @@ for i_episode in range(500):
             segment_reward += reward
 
         # get the final state of the segment (ideally at the waypoint)
-        next_state = obs['robot0_eef_pos']
+        next_state = list(obs['robot0_eef_pos']) + [obs['hinge_qpos']]
+        next_state = np.array(next_state)
 
         # Ignore the "done" signal if it comes from hitting the time horizon.
         # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
@@ -143,3 +148,5 @@ for i_episode in range(500):
 
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+    reward_data.append(episode_reward)
+    pickle.dump(reward_data, open(run_name + "/rewards.pkl", "wb"))
