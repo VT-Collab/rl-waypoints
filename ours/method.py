@@ -14,7 +14,7 @@ class Method(object):
         self.lr = 0.001
         self.hidden_size = 64
         self.n_models = 30
-        self.n_samples = 5
+        self.n_samples = 3
         self.models = []
         self.n_inits = 5
 

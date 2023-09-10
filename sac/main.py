@@ -48,7 +48,8 @@ controller_config = load_controller_config(default_controller="OSC_POSE")
 
 # create environment instance
 env = suite.make(
-    env_name="Door", # try with other tasks like "Stack" and "Door"
+    # env_name="Door", # try with other tasks like "Stack" and "Door"
+    env_name="Wipe", # try with other tasks like "Stack" and "Door"
     robots="Panda",  # try with other robots like "Sawyer" and "Jaco"
     controller_configs=controller_config,
     has_renderer=False,
@@ -57,7 +58,7 @@ env = suite.make(
     has_offscreen_renderer=False,
     use_camera_obs=False,
     initialization_noise=None,
-    use_latch=False,
+    # use_latch=False,
 )
 
 # Agent
@@ -66,10 +67,12 @@ env_action_space = gym.spaces.Box(
             high=+0.5,
             shape=(3,),
             dtype=np.float64)
-agent = SAC(4, env_action_space, args)
+# agent = SAC(4, env_action_space, args)
+agent = SAC(3, env_action_space, args)
 
 #Tensorboard
-run_name = 'runs/sac_' + datetime.datetime.now().strftime("%H-%M")
+# run_name = 'runs/sac_door_' + datetime.datetime.now().strftime("%H-%M")
+run_name = 'runs/sac_wipe_' + datetime.datetime.now().strftime("%H-%M")
 writer = SummaryWriter(run_name)
 reward_data = []
 
@@ -91,8 +94,9 @@ for i_episode in range(500):
     for _ in range(4):
 
         # initialize segment
-        state = list(obs['robot0_eef_pos']) + [obs['hinge_qpos']]
-        state = np.array(state)
+        # state = list(obs['robot0_eef_pos']) + [obs['hinge_qpos']]
+        # state = np.array(state)
+        state = obs['robot0_eef_pos']
         start_state = np.copy(state)
         segment_reward = 0
 
@@ -109,10 +113,12 @@ for i_episode in range(500):
             # env.render()    # toggle this when we don't want to render
 
             # compute action for low-level controller
-            state = list(obs['robot0_eef_pos']) + [obs['hinge_qpos']]
-            state = np.array(state)
+            # state = list(obs['robot0_eef_pos']) + [obs['hinge_qpos']]
+            # state = np.array(state)
+            state = obs['robot0_eef_pos']
             error = waypoint_normalized - state[:3]
-            full_action = np.array(list(10. * error) + [0.]*4)            
+            # full_action = np.array(list(10. * error) + [0.]*4)
+            full_action = np.array(list(10. * error) + [0.]*3)
 
             # train sac agent
             if len(memory) > args.batch_size:
@@ -136,8 +142,9 @@ for i_episode in range(500):
             segment_reward += reward
 
         # get the final state of the segment (ideally at the waypoint)
-        next_state = list(obs['robot0_eef_pos']) + [obs['hinge_qpos']]
-        next_state = np.array(next_state)
+        # next_state = list(obs['robot0_eef_pos']) + [obs['hinge_qpos']]
+        # next_state = np.array(next_state)
+        next_state = obs['robot0_eef_pos']
 
         # Ignore the "done" signal if it comes from hitting the time horizon.
         # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)

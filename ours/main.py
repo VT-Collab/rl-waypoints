@@ -18,7 +18,8 @@ controller_config = load_controller_config(default_controller="OSC_POSE")
 
 # create environment instance
 env = suite.make(
-    env_name="Door", # try with other tasks like "Stack" and "Door"
+    # env_name="Door", # try with other tasks like "Stack" and "Door"
+    env_name="Wipe", # try with other tasks like "Stack" and "Door"
     robots="Panda",  # try with other robots like "Sawyer" and "Jaco"
     controller_configs=controller_config,
     has_renderer=False,
@@ -27,7 +28,7 @@ env = suite.make(
     has_offscreen_renderer=False,
     use_camera_obs=False,
     initialization_noise=None,
-    use_latch=False,
+    # use_latch=False,
 )
 
 # Agent
@@ -37,7 +38,8 @@ agent = Method(traj_dim=12)
 memory = MyMemory()
 
 # Logger
-run_name = 'runs/ours_' + datetime.datetime.now().strftime("%H-%M")
+# run_name = 'runs/ours_door_' + datetime.datetime.now().strftime("%H-%M")
+run_name = 'runs/ours_wipe_' + datetime.datetime.now().strftime("%H-%M")
 writer = SummaryWriter(run_name)
 reward_data = []
 
@@ -70,7 +72,8 @@ for i_episode in range(1, 501):
         state = obs['robot0_eef_pos']
         widx = int(np.floor(timestep / 25))
         error = traj_mat[widx, :] - state
-        full_action = np.array(list(10. * error) + [0.]*4)
+        # full_action = np.array(list(10. * error) + [0.]*4)
+        full_action = np.array(list(10. * error) + [0.]*3)
 
         # take step
         obs, reward, done, _ = env.step(full_action)

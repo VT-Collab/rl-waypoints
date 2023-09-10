@@ -3,17 +3,17 @@ from scipy.signal import savgol_filter
 import pickle
 import numpy as np
 
-o1 = pickle.load(open("ours/rewards1.pkl", "rb"))
-o2 = pickle.load(open("ours/rewards2.pkl", "rb"))
-o3 = pickle.load(open("ours/rewards3.pkl", "rb"))
-o4 = pickle.load(open("ours/rewards4.pkl", "rb"))
-o5 = pickle.load(open("ours/rewards5.pkl", "rb"))
+o1 = pickle.load(open("ours/wipe/rewards1.pkl", "rb"))
+o2 = pickle.load(open("ours/wipe/rewards2.pkl", "rb"))
+o3 = pickle.load(open("ours/wipe/rewards3.pkl", "rb"))
+o4 = pickle.load(open("ours/wipe/rewards4.pkl", "rb"))
+o5 = pickle.load(open("ours/wipe/rewards5.pkl", "rb"))
 
-s1 = pickle.load(open("sac/rewards1.pkl", "rb"))
-s2 = pickle.load(open("sac/rewards2.pkl", "rb"))
-s3 = pickle.load(open("sac/rewards3.pkl", "rb"))
-s4 = pickle.load(open("sac/rewards4.pkl", "rb"))
-s5 = pickle.load(open("sac/rewards5.pkl", "rb"))
+s1 = pickle.load(open("sac/wipe/rewards1.pkl", "rb"))
+s2 = pickle.load(open("sac/wipe/rewards2.pkl", "rb"))
+s3 = pickle.load(open("sac/wipe/rewards3.pkl", "rb"))
+s4 = pickle.load(open("sac/wipe/rewards4.pkl", "rb"))
+s5 = pickle.load(open("sac/wipe/rewards5.pkl", "rb"))
 
 ours = np.array([o1, o2, o3, o4, o5])
 sac = np.array([s1, s2, s3, s4, s5])
