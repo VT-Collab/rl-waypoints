@@ -53,6 +53,11 @@ class Method(object):
         self.best_traj = np.copy(traj)
 
 
+    # schedule the number of samples we should average over
+    def set_n_samples(self, n_samples):
+        self.n_samples = n_samples
+
+
     # get cost for trajectory optimizer
     def get_cost(self, traj):
         traj = torch.FloatTensor(traj)

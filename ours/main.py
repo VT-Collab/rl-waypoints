@@ -23,7 +23,7 @@ env = suite.make(
     env_name="Lift", # try with other tasks like "Stack" and "Door"
     robots="Panda",  # try with other robots like "Sawyer" and "Jaco"
     controller_configs=controller_config,
-    has_renderer=True,
+    has_renderer=False,
     reward_shaping=True,
     control_freq=10,
     has_offscreen_renderer=False,
@@ -69,11 +69,15 @@ for i_episode in range(1, 501):
     traj_mat[:,3] *= 2.0
     print(traj_mat)
 
+    n_samples = int(i_episode / 100) + 1
+    agent.set_n_samples(n_samples)
+    print(n_samples)
+
     for widx in range(3):
 
         for timestep in range(40):
 
-            env.render()    # toggle this when we don't want to render
+            # env.render()    # toggle this when we don't want to render
 
             if len(memory) > batch_size:
                 for _ in range(1):
