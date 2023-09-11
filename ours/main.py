@@ -23,7 +23,7 @@ env = suite.make(
     env_name="Lift", # try with other tasks like "Stack" and "Door"
     robots="Panda",  # try with other robots like "Sawyer" and "Jaco"
     controller_configs=controller_config,
-    has_renderer=False,
+    has_renderer=True,
     reward_shaping=True,
     control_freq=10,
     has_offscreen_renderer=False,
@@ -60,16 +60,20 @@ for i_episode in range(1, 501):
     # select optimal trajectory
     # traj = 0.5*(np.random.rand(12)-0.5)
     traj = 0.5*(np.random.rand(12)-0.5)
+    traj[3]*=2
+    traj[7]*=2
+    traj[11]*=2
     if i_episode > 40:
         traj = agent.traj_opt()
     traj_mat = np.reshape(traj, (3,4)) + robot_home
-    traj_mat[:,3] = 2*(traj_mat[:,3] > 0.0) - 1.0
+    traj_mat[:,3] *= 2.0
+    print(traj_mat)
 
     for widx in range(3):
 
         for timestep in range(40):
 
-            # env.render()    # toggle this when we don't want to render
+            env.render()    # toggle this when we don't want to render
 
             if len(memory) > batch_size:
                 for _ in range(1):
