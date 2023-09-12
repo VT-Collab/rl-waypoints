@@ -9,12 +9,12 @@ from scipy.optimize import minimize, LinearConstraint
 class Method(object):
     def __init__(self, traj_dim):
 
-        # hyperparameters   
+        # hyperparameters
         self.traj_dim = traj_dim
-        self.lr = 0.001
-        self.hidden_size = 64
+        self.lr = 0.0003
+        self.hidden_size = 256
         self.n_models = 30
-        self.n_samples = 3
+        self.n_samples = 1
         self.models = []
         self.n_inits = 5
 
@@ -56,34 +56,16 @@ class Method(object):
     # schedule the number of samples we should average over
     def set_n_samples(self, n_samples):
         self.n_samples = n_samples
+        print("n_samples is now set to: ", n_samples)
 
 
     # get cost for trajectory optimizer
     def get_cost(self, traj):
         traj = torch.FloatTensor(traj)
-        reward = 0
-        for idx in self.reward_idx:
-            reward += self.get_reward(traj, idx)
-        stdev = self.get_stdev(traj)
-        return -reward / (1.0 * len(self.reward_idx)) - 0.2 * stdev
-
-
-    # get stdev over reward models
-    def get_stdev(self, traj):
-        if self.n_samples == 1:
-            return 0.0
-        R = np.zeros((self.n_samples,))
+        reward = np.zeros((self.n_samples,))
         for x, idx in enumerate(self.reward_idx):
-            R[x] = self.get_reward(traj, idx)
-        return np.std(R)
-
-
-    # get average and std reward across all models
-    def get_avg_reward(self, traj):
-        R = np.zeros((self.n_models,))
-        for idx in range(self.n_models):
-            R[idx] = self.get_reward(traj, idx)
-        return np.mean(R), np.std(R), R
+            reward[x] = self.get_reward(traj, idx)
+        return -np.mean(reward)
 
 
     # get reward from specific model
