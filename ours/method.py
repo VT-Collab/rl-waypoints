@@ -64,7 +64,18 @@ class Method(object):
         reward = 0
         for idx in self.reward_idx:
             reward += self.get_reward(traj, idx)
-        return -reward / (1.0 * len(self.reward_idx))
+        stdev = self.get_stdev(traj)
+        return -reward / (1.0 * len(self.reward_idx)) - 0.2 * stdev
+
+
+    # get stdev over reward models
+    def get_stdev(self, traj):
+        if self.n_samples == 1:
+            return 0.0
+        R = np.zeros((self.n_samples,))
+        for x, idx in enumerate(self.reward_idx):
+            R[x] = self.get_reward(traj, idx)
+        return np.std(R)
 
 
     # get average and std reward across all models

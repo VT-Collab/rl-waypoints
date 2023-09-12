@@ -67,11 +67,10 @@ for i_episode in range(1, 501):
         traj = agent.traj_opt()
     traj_mat = np.reshape(traj, (3,4)) + robot_home
     traj_mat[:,3] *= 2.0
-    print(traj_mat)
 
+    # increase the number of reward models we average over
     n_samples = int(i_episode / 100) + 1
     agent.set_n_samples(n_samples)
-    print(n_samples)
 
     for widx in range(3):
 
