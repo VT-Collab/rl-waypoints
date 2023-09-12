@@ -16,7 +16,7 @@ class Method(object):
         self.hidden_size = 64
         self.n_models = 10
         self.models = []
-        self.n_inits = 5
+        self.n_inits = 1
 
         # Critic
         for _ in range(self.n_models):
