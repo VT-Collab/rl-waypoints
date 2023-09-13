@@ -51,7 +51,7 @@ env = suite.make(
     env_name="Wipe",
     robots="Panda",
     controller_configs=controller_config,
-    has_renderer=True,
+    has_renderer=False,
     reward_shaping=True,
     control_freq=10,
     has_offscreen_renderer=False,
@@ -104,7 +104,7 @@ for i_episode in range(1, 501):
         # number of steps per waypoint
         for timestep in range(25):
 
-            env.render()    # toggle this when we don't want to render
+            # env.render()    # toggle this when we don't want to render
 
             # compute action for low-level controller
             state = obs['robot0_eef_pos']
