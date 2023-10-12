@@ -6,6 +6,18 @@ import numpy as np
 from scipy.optimize import minimize, LinearConstraint
 
 
+# option 1: bayesian optimization = eliminated
+# option 2: just give it the number of waypoints and figure it out
+# option 3: R1 is trained then frozen. R2 is trained then frozen.
+# downside - no chance to go back and fix an earlier waypoint (which seems like fundamnetal problem)
+# option 4: R(traj) of variable length. Shorter R(traj) are used as
+# expert demonstrations to seed the search of later R(traj), works for changing s0
+# what about keeping the earlier ones in the memory? 
+# would need a recursive structure for R, which I guess is fine
+# make R a gru
+# this seems like an instance of curriculum learning
+
+
 class Method(object):
     def __init__(self, state_dim, n_waypoints):
 
@@ -21,21 +33,20 @@ class Method(object):
 
         # Reward Models
         for _ in range(self.n_models):
-            critic = RNetwork(self.state_dim*self.n_waypoints, hidden_dim=self.hidden_size)
+            critic = RNetwork(self.state_dim*self.n_waypoints, self.hidden_size)
             optimizer = Adam(critic.parameters(), lr=self.lr)
             self.models.append((critic, optimizer))
 
         # Trajectory Optimization
         self.best_reward = -np.inf
-        self.best_traj = np.zeros((self.state_dim*self.n_waypoints,))
-        self.best_waypoint = None
-        self.lin_con = LinearConstraint(np.eye(self.n_waypoints*self.state_dim), -0.5, 0.5)
+        self.best_traj = None
 
 
     # trajectory optimization over sampled reward function
     # hyperparameters: state space limits in linear constraint, noise in xi0
     def traj_opt(self):
         xi_star, cost_min = None, np.inf
+        self.lin_con = LinearConstraint(np.eye(len(self.best_traj)), -0.5, 0.5)
         self.reward_idx = np.random.choice(self.n_models, self.n_samples, replace=True)
         for idx in range(self.n_inits):
             xi0 = np.copy(self.best_traj)
@@ -53,17 +64,16 @@ class Method(object):
 
     # reset a reward model
     def reset_model(self, index):
-        critic = RNetwork(self.state_dim*self.n_waypoints, hidden_dim=self.hidden_size)
+        critic = RNetwork(self.state_dim*self.n_waypoints, self.hidden_size)
         optimizer = Adam(critic.parameters(), lr=self.lr)
         self.models[index] = (critic, optimizer)
         print("just reset model number: ", index)
 
 
     # set the initial parameters for trajectory optimization
-    def set_init(self, traj, waypoint, reward):
+    def set_init(self, traj, reward):
         self.best_reward = reward
         self.best_traj = np.copy(traj)
-        self.best_waypoint = np.copy(waypoint)
         print("best_traj is now set with reward: ", reward)
 
 
@@ -81,6 +91,12 @@ class Method(object):
 
     # get cost for trajectory optimizer
     def get_cost(self, traj):
+        traj_temp = np.reshape(traj, (-1, self.state_dim))
+        traj_mat = np.zeros((self.n_waypoints, self.state_dim))
+        n, _ = traj_temp.shape
+        traj_mat[:n, :] = traj_temp
+        traj_mat[n:, :] = traj_temp[-1,:]
+        traj = np.reshape(traj_mat, (-1,))
         traj = torch.FloatTensor(traj)
         reward = np.zeros((self.n_samples,))
         for x, idx in enumerate(self.reward_idx):

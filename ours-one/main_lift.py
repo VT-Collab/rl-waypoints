@@ -11,17 +11,11 @@ import pickle
 import copy
 
 
-# option 1: reward for one point, then optimize as normal
-# option 2: bayesian optimization
-
-
-## put open / close at end
-
 # training parameters
 state_dim = 4
-n_waypoints = 3
+max_waypoints = 2
 batch_size = 30
-init_trajs = 30
+n_batches = 40
 n_samples = 5
 
 # load default controller parameters for Operational Space Control (OSC)
@@ -47,24 +41,38 @@ writer = SummaryWriter(run_name)
 reward_data = []
 
 
+# Agent
+agent = Method(state_dim, max_waypoints)
+agent.set_n_samples(n_samples)
+
+
+# Memory
+memory = MyMemory()
+
+
 # Main loop
-learned_waypoints = []
+updates = 0
+i_episode_total = 0
 
-for widx in range(n_waypoints):
-    
-    # Agent
-    agent = Method(state_dim, 1)
-    agent.set_n_samples(n_samples)
+for n_waypoints in range(1, max_waypoints+1):
 
-    # Memory
-    memory = MyMemory()
-    updates = 0
+    agent.set_init(None, -np.inf)
     
     for i_episode in range(1, 101):
+
+        # global episode counter
+        i_episode_total += 1
 
         # occasionally reset a reward model
         if np.random.rand() < 0.05:
             agent.reset_model(np.random.randint(agent.n_models))
+
+        # train reward models
+        if len(memory) > batch_size:
+            for _ in range(n_batches):
+                critic_loss = agent.update_parameters(memory, batch_size)
+                writer.add_scalar('model/critic', critic_loss, updates)
+                updates += 1 
 
         # initialize variables
         episode_reward = 0
@@ -73,61 +81,42 @@ for widx in range(n_waypoints):
         robot_home[:3] = np.copy(obs['robot0_eef_pos'])
 
         # select optimal trajectory
-        traj = 0.5*(np.random.rand(state_dim)-0.5)
-        traj[-1] *= 2.0
-        if i_episode > init_trajs:
+        traj = 0.5*(np.random.rand(n_waypoints*state_dim)-0.5)
+        if i_episode > batch_size:
             traj = agent.traj_opt()
-        traj[-1] *= 2.0
-        proposed_waypoint = traj + robot_home
+        traj_temp = np.reshape(traj, (n_waypoints, state_dim))
+        traj_mat = np.zeros((max_waypoints, state_dim))
+        traj_mat[:n_waypoints, :] = traj_temp
+        traj_mat[n_waypoints:, :] = traj_temp[-1,:]
+        traj_for_memory = np.reshape(traj_mat, (-1,))
+        traj_mat += robot_home         
 
-        # get overall trajectory
-        traj_mat = copy.deepcopy(learned_waypoints)
-        traj_mat.append(proposed_waypoint)
-
-        # save robot and object trajectory
-        xi_robot = []
-        xi_cube = []
-
+        # inner loop: rollout the trajectory and record reward
         for waypoint in traj_mat:
-
             for timestep in range(40):
 
                 env.render()    # toggle this when we don't want to render
 
-                # train reward models
-                if len(memory) > batch_size:
-                    for _ in range(1):
-                        critic_loss = agent.update_parameters(memory, batch_size)
-                        writer.add_scalar('model/critic', critic_loss, updates)
-                        updates += 1
-
                 # convert traj to actions
                 state = obs['robot0_eef_pos']
                 error = waypoint[:3] - state
-                if timestep < 15:
+                if timestep > 25:
                     # give some time to open / close the gripper
-                    full_action = np.array(list(0.0 * error) + [0.]*3 + [waypoint[3]])
+                    full_action = np.array(list(0.0 * error) + [0.]*3 + [waypoint[-1]])
                 else:
                     # normal actions
-                    full_action = np.array(list(10. * error) + [0.]*3 + [waypoint[3]])
+                    full_action = np.array(list(10. * error) + [0.]*4)
 
                 # take step
                 obs, reward, done, _ = env.step(full_action)
                 episode_reward += reward
 
-                # save robot and object trajectory
-                xi_robot.append(list(obs['robot0_eef_pos']))
-                xi_cube.append(list(obs['cube_pos']))
-
-        memory.push(traj, episode_reward / 10.)
+        memory.push(traj_for_memory, episode_reward / 10.)
         if episode_reward > agent.best_reward:
-            agent.set_init(traj, proposed_waypoint, episode_reward)
-            pickle.dump([xi_robot, xi_cube], open(run_name + "/traj.pkl", "wb"))    
+            agent.set_init(traj, episode_reward)
 
-        writer.add_scalar('reward', episode_reward, i_episode)
-        print("Episode: {}, Reward: {}".format(i_episode, round(episode_reward, 2)))
-        print(round(obs['cube_pos'][-1], 3))
+        writer.add_scalar('reward', episode_reward, i_episode_total)
+        print("Episode: {}, Reward: {}, Cube: {}".
+            format(i_episode_total, round(episode_reward, 2), round(obs['cube_pos'][-1], 3)))
         reward_data.append(episode_reward)
         pickle.dump(reward_data, open(run_name + "/rewards.pkl", "wb"))
-
-    learned_waypoints.append(agent.best_waypoint)

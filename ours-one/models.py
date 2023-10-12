@@ -22,4 +22,4 @@ class RNetwork(nn.Module):
     def forward(self, traj):
         x = self.ReLU(self.linear1(traj))
         x = self.ReLU(self.linear2(x))
-        return self.linear3(x)
+        return self.linear3(x)   
