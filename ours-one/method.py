@@ -6,17 +6,6 @@ import numpy as np
 from scipy.optimize import minimize, LinearConstraint
 
 
-# option 1: bayesian optimization = eliminated
-# option 2: just give it the number of waypoints and figure it out
-# option 3: R1 is trained then frozen. R2 is trained then frozen.
-# downside - no chance to go back and fix an earlier waypoint (which seems like fundamnetal problem)
-# option 4: R(traj) of variable length. Shorter R(traj) are used as
-# expert demonstrations to seed the search of later R(traj), works for changing s0
-# what about keeping the earlier ones in the memory? 
-# would need a recursive structure for R, which I guess is fine
-# make R a gru
-# this seems like an instance of curriculum learning
-
 
 class Method(object):
     def __init__(self, state_dim, n_waypoints):
@@ -27,9 +16,8 @@ class Method(object):
         self.lr = 0.0003
         self.hidden_size = 256
         self.n_models = 10
-        self.n_samples = 1
         self.models = []
-        self.n_inits = 1
+        self.n_inits = 10
 
         # Reward Models
         for _ in range(self.n_models):
@@ -44,22 +32,36 @@ class Method(object):
 
     # trajectory optimization over sampled reward function
     # hyperparameters: state space limits in linear constraint, noise in xi0
-    def traj_opt(self):
+    def traj_opt(self, widx):
+        self.widx = widx
         xi_star, cost_min = None, np.inf
-        self.lin_con = LinearConstraint(np.eye(len(self.best_traj)), -0.5, 0.5)
-        self.reward_idx = np.random.choice(self.n_models, self.n_samples, replace=True)
+        xi_len = self.widx * self.state_dim
+        lin_con = LinearConstraint(np.eye(xi_len), -0.5, 0.5)
+        self.reward_idx = np.random.choice(self.n_models)
         for idx in range(self.n_inits):
-            xi0 = np.copy(self.best_traj)
-            if idx > 0:
-                xi0 += np.random.normal(0, 0.05, size=len(self.best_traj))
+            xi0 = 0.5*(np.random.rand(xi_len)-0.5)
             res = minimize(self.get_cost, xi0, 
                             method='SLSQP', 
-                            constraints=self.lin_con, 
+                            constraints=lin_con, 
                             options={'eps': 1e-6, 'maxiter': 1e6})
             if res.fun < cost_min:
                 cost_min = res.fun
                 xi_star = res.x
+        # exploration of the gripper
+        xi_star[-1] = np.random.choice([-1.0, 1.0])
+        print(xi_star)
         return xi_star
+
+
+    # get cost for trajectory optimizer
+    def get_cost(self, traj):
+        xi = np.reshape(traj, (-1, self.state_dim))
+        xi_full = np.zeros((self.n_waypoints, self.state_dim))
+        xi_full[:self.widx,:] = xi
+        xi_full[self.widx:,:] = xi[-1,:]
+        traj_full = np.reshape(xi_full, (-1,))
+        traj_full = torch.FloatTensor(traj_full)
+        return -self.get_reward(traj_full, self.reward_idx)
 
 
     # reset a reward model
@@ -70,38 +72,19 @@ class Method(object):
         print("just reset model number: ", index)
 
 
-    # set the initial parameters for trajectory optimization
-    def set_init(self, traj, reward):
-        self.best_reward = reward
-        self.best_traj = np.copy(traj)
-        print("best_traj is now set with reward: ", reward)
-
-
-    # set the number of samples we should average over
-    def set_n_samples(self, n_samples):
-        self.n_samples = n_samples
-        print("n_samples is now set to: ", n_samples)
-
-
     # get reward from specific model
     def get_reward(self, traj, idx):
         critic, _ = self.models[idx]
         return critic(traj).item()
 
 
-    # get cost for trajectory optimizer
-    def get_cost(self, traj):
-        traj_temp = np.reshape(traj, (-1, self.state_dim))
-        traj_mat = np.zeros((self.n_waypoints, self.state_dim))
-        n, _ = traj_temp.shape
-        traj_mat[:n, :] = traj_temp
-        traj_mat[n:, :] = traj_temp[-1,:]
-        traj = np.reshape(traj_mat, (-1,))
+    # get average reward across all models
+    def get_avg_reward(self, traj):
         traj = torch.FloatTensor(traj)
-        reward = np.zeros((self.n_samples,))
-        for x, idx in enumerate(self.reward_idx):
-            reward[x] = self.get_reward(traj, idx)
-        return -np.mean(reward)
+        reward = np.zeros((self.n_models,))
+        for idx in range(self.n_models):
+            reward[idx] = self.get_reward(traj, idx)
+        return np.mean(reward)
 
 
     # train all the reward models
