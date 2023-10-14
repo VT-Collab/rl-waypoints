@@ -8,65 +8,68 @@ from scipy.optimize import minimize, LinearConstraint
 
 
 class Method(object):
-    def __init__(self, state_dim, n_waypoints):
+    def __init__(self, state_dim, obs_dim):
 
         # hyperparameters
         self.state_dim = state_dim
-        self.n_waypoints = n_waypoints
+        self.obs_dim = obs_dim
         self.lr = 0.0003
-        self.hidden_size = 256
+        self.hidden_size = 128
         self.n_models = 10
         self.models = []
         self.n_inits = 10
 
         # Reward Models
         for _ in range(self.n_models):
-            critic = RNetwork(self.state_dim*self.n_waypoints, self.hidden_size)
+            critic = RNetwork(self.state_dim + self.obs_dim, self.hidden_size)
             optimizer = Adam(critic.parameters(), lr=self.lr)
             self.models.append((critic, optimizer))
 
         # Trajectory Optimization
         self.best_reward = -np.inf
         self.best_traj = None
+        self.lb = np.array([-0.25, -0.25, -0.25, -np.pi/4, -1.0])
+        self.ub = np.array([0.25, 0.25, 0.25, np.pi/4, 1.0])
+        self.lin_con = LinearConstraint(np.eye(self.state_dim), self.lb, self.ub)
+
+
+    # sample a random waypoint
+    def sample_waypoint(self):
+        return np.random.uniform(self.lb, self.ub)
 
 
     # trajectory optimization over sampled reward function
-    # hyperparameters: state space limits in linear constraint, noise in xi0
-    def traj_opt(self, widx):
-        self.widx = widx
+    def traj_opt(self, obs, n_samples=1):
+        self.obs = obs
+        self.n_samples = n_samples
         xi_star, cost_min = None, np.inf
-        xi_len = self.widx * self.state_dim
-        lin_con = LinearConstraint(np.eye(xi_len), -0.5, 0.5)
-        self.reward_idx = np.random.choice(self.n_models)
+        self.reward_idx = np.random.choice(self.n_models, 
+                                    self.n_samples, replace=False)
         for idx in range(self.n_inits):
-            xi0 = 0.5*(np.random.rand(xi_len)-0.5)
+            xi0 = self.sample_waypoint()
             res = minimize(self.get_cost, xi0, 
                             method='SLSQP', 
-                            constraints=lin_con, 
+                            constraints=self.lin_con, 
                             options={'eps': 1e-6, 'maxiter': 1e6})
             if res.fun < cost_min:
                 cost_min = res.fun
                 xi_star = res.x
-        # exploration of the gripper
-        xi_star[-1] = np.random.choice([-1.0, 1.0])
-        print(xi_star)
         return xi_star
 
 
     # get cost for trajectory optimizer
     def get_cost(self, traj):
-        xi = np.reshape(traj, (-1, self.state_dim))
-        xi_full = np.zeros((self.n_waypoints, self.state_dim))
-        xi_full[:self.widx,:] = xi
-        xi_full[self.widx:,:] = xi[-1,:]
-        traj_full = np.reshape(xi_full, (-1,))
-        traj_full = torch.FloatTensor(traj_full)
-        return -self.get_reward(traj_full, self.reward_idx)
+        traj1 = np.concatenate((traj, self.obs), -1)
+        traj1 = torch.FloatTensor(traj1)
+        reward = np.zeros((self.n_samples,))
+        for x, idx in enumerate(self.reward_idx):
+            reward[x] = self.get_reward(traj1, idx)
+        return -np.mean(reward)
 
 
     # reset a reward model
     def reset_model(self, index):
-        critic = RNetwork(self.state_dim*self.n_waypoints, self.hidden_size)
+        critic = RNetwork(self.state_dim + self.obs_dim, self.hidden_size)
         optimizer = Adam(critic.parameters(), lr=self.lr)
         self.models[index] = (critic, optimizer)
         print("just reset model number: ", index)

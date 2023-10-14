@@ -11,10 +11,10 @@ def weights_init_(m):
 
 
 class RNetwork(nn.Module):
-    def __init__(self, traj_dim, hidden_dim):
+    def __init__(self, input_dim, hidden_dim):
         super(RNetwork, self).__init__()
         self.ReLU = nn.LeakyReLU()
-        self.linear1 = nn.Linear(traj_dim, hidden_dim)
+        self.linear1 = nn.Linear(input_dim, hidden_dim)
         self.linear2 = nn.Linear(hidden_dim, hidden_dim)
         self.linear3 = nn.Linear(hidden_dim, 1)
         self.apply(weights_init_)
