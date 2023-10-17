@@ -113,3 +113,20 @@ class Method(object):
         q_loss.backward()
         optimizer.step()
         return q_loss.item()
+
+
+    # Save models
+    def save_models(self, save_name):
+        print('Saving models to {}'.format(save_name))
+        for idx, (critic, optimizer) in enumerate(self.models):
+            torch.save(critic.state_dict(), save_name + "_" + str(idx))
+        
+
+    # Load models
+    def load_models(self, load_name):
+        print('Loading models from {}'.format(load_name))
+        for idx in range(self.n_models):
+            critic = RNetwork(self.state_dim + self.obs_dim, self.hidden_size)
+            critic.load_state_dict(torch.load(load_name + "_" + str(idx)))
+            critic.eval()
+            self.models[idx] = (critic, None)
