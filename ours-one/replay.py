@@ -34,7 +34,7 @@ total_waypoints = 2
 
 
 # Load Name
-run_name = 'runs/ours_' + env_name + '_' + '22-58'
+run_name = 'runs/ours_' + env_name + '_' + '09-10'
 
 
 # Load trained agents

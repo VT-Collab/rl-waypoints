@@ -111,7 +111,7 @@ for n_waypoint in range(total_waypoints):
         episode_reward = 0
         for waypoint in xi_full:
             waypoint_reward = 0
-            for timestep in range(40):
+            for timestep in range(50):
 
                 # env.render()    # toggle this when we don't want to render
 
@@ -142,7 +142,7 @@ for n_waypoint in range(total_waypoints):
         writer.add_scalar('reward', episode_reward, total_interactions)
         print("Episode: {}, Reward: {}, WP-Reward: {}, Pred-Reward: {}".
             format(total_interactions, round(episode_reward, 2), 
-                        round(waypoint_reward, 2), round(10*agent.get_avg_reward(traj), 2)))
+                        round(waypoint_reward, 2), round(10 * agent.get_avg_reward(traj), 2)))
 
     # save the trained agent for the previous waypoint
     my_waypoints.append(best_waypoint)
