@@ -20,6 +20,6 @@ class RNetwork(nn.Module):
         self.apply(weights_init_)
 
     def forward(self, traj):
-        x = self.ReLU(self.linear1(traj))
-        x = self.ReLU(self.linear2(x))
+        x = torch.tanh(self.linear1(traj))
+        x = torch.tanh(self.linear2(x))
         return self.linear3(x)   

@@ -10,7 +10,7 @@ import pickle
 from scipy.spatial.transform import Rotation
 
 # env name
-env_name = "Stack"
+env_name = "Lift"
 
 # load default controller parameters for Operational Space Control (OSC)
 controller_config = load_controller_config(default_controller="OSC_POSE")
@@ -26,18 +26,18 @@ env = suite.make(
     has_offscreen_renderer=False,
     use_camera_obs=False,
     initialization_noise=None,
-    reward_scale=0.1
 )
 obs = env.reset()
 robot_home = np.copy(obs['robot0_eef_pos'])
 
 
 state_dim = 5
-obs_dim = 8
-total_waypoints = 4
+obs_dim = 4
+total_waypoints = 2
 batch_size = 30
 n_batches = 100
-n_init = 100
+n_init = 50
+n_per_waypoint = 400
 
 
 # Logger
@@ -49,6 +49,7 @@ writer = SummaryWriter(run_name)
 updates = 0
 total_interactions = 0
 my_agents = []
+my_waypoints = []
 
 for n_waypoint in range(total_waypoints):
 
@@ -58,20 +59,21 @@ for n_waypoint in range(total_waypoints):
     # Memory
     memory = MyMemory()
 
-    for n_interaction in range(1, 301):
+    # Best Waypoint
+    best_waypoint = None
+    best_reward = -np.inf
+
+    for n_interaction in range(1, n_per_waypoint+1):
 
         # reset to home position
         total_interactions += 1
         obs = env.reset()
-        cubeA_pos = obs['cubeA_pos']
-        cubeA_angle = Rotation.from_quat(obs['cubeA_quat']).as_euler('xyz')[-1]
-        cubeB_pos = obs['cubeB_pos']
-        cubeB_angle = Rotation.from_quat(obs['cubeB_quat']).as_euler('xyz')[-1]
-        cube_state = np.array(list(cubeA_pos) + [cubeA_angle] 
-                            + list(cubeB_pos) + [cubeB_angle])
+        cube_pos = obs['cube_pos']
+        cube_angle = Rotation.from_quat(obs['cube_quat']).as_euler('xyz')[-1]
+        cube_state = np.array(list(cube_pos) + [cube_angle])
 
         # occasionally reset a reward model
-        if n_interaction < 200 and np.random.rand() < 0.05:
+        if n_interaction < (n_per_waypoint-50) and np.random.rand() < 0.05:
             agent.reset_model(np.random.randint(agent.n_models))
 
         # train reward models
@@ -84,21 +86,22 @@ for n_waypoint in range(total_waypoints):
         ## interaction trajectory
         # previous trajectory
         xi_full = []
-        for prev_agent in my_agents:
-            prev_xi = prev_agent.traj_opt(cube_state, prev_agent.n_models)
+        for widx, prev_agent in enumerate(my_agents):
+            init_xi = my_waypoints[widx]
+            prev_xi = prev_agent.traj_opt(init_xi, cube_state, prev_agent.n_models)
             xi_full.append(prev_xi)
         # new waypoint
         xi = agent.sample_waypoint()
-        if n_interaction > n_init:
-            xi = agent.traj_opt(cube_state)
+        if n_interaction > max([n_init, batch_size]):
+            xi = agent.traj_opt(best_waypoint, cube_state)
             xi[-1] = np.random.choice([-1.0, 1.0])
         xi_full.append(xi)
         traj = np.concatenate((xi, cube_state), -1)
-        print("predicted reward: ", agent.get_avg_reward(traj))
 
         # execute trajectory to get reward
         episode_reward = 0
         for waypoint in xi_full:
+            waypoint_reward = 0
             for timestep in range(40):
 
                 # env.render()    # toggle this when we don't want to render
@@ -118,12 +121,22 @@ for n_waypoint in range(total_waypoints):
                 # take step
                 obs, reward, done, _ = env.step(full_action)
                 episode_reward += reward
+                waypoint_reward += reward
+
+        # update best waypoint
+        if waypoint_reward > best_reward:
+            best_reward = waypoint_reward
+            best_waypoint = np.copy(xi)
 
         # record trajectory reward pair
-        memory.push(traj, episode_reward)
+        memory.push(traj, waypoint_reward)
         writer.add_scalar('reward', episode_reward, total_interactions)
-        print("Episode: {}, Reward: {}".format(total_interactions, round(episode_reward, 2)))
+        print("Episode: {}, Reward: {}, WP-Reward: {}, Pred-Reward: {}".
+            format(total_interactions, round(episode_reward, 2), 
+                        round(waypoint_reward, 2), round(agent.get_avg_reward(traj), 2)))
 
     # save the trained agent for the previous waypoint
+    my_waypoints.append(best_waypoint)
+    pickle.dump(my_waypoints, open(run_name + "/init_traj.pkl", "wb"))
     agent.save_models(run_name + "/reward_model_" + str(n_waypoint))
     my_agents.append(agent)

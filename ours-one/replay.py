@@ -30,11 +30,11 @@ robot_home = np.copy(obs['robot0_eef_pos'])
 
 state_dim = 5
 obs_dim = 8
-total_waypoints = 4
+total_waypoints = 2
 
 
 # Load Name
-run_name = 'runs/ours_' + env_name + '_' + '23-19'
+run_name = 'runs/ours_' + env_name + '_' + '22-58'
 
 
 # Load trained agents
@@ -43,6 +43,7 @@ for n_waypoint in range(total_waypoints):
     agent = Method(state_dim, obs_dim)
     agent.load_models(run_name + "/reward_model_" + str(n_waypoint))
     my_agents.append(agent)
+my_waypoints = pickle.load(open(run_name + "/init_traj.pkl", "rb"))
 
 
 # Main loop
@@ -59,8 +60,9 @@ for n_interaction in range(1, 51):
 
     ## interaction trajectory
     xi_full = []
-    for prev_agent in my_agents:
-        prev_xi = prev_agent.traj_opt(cube_state, prev_agent.n_models)
+    for widx, prev_agent in enumerate(my_agents):
+        init_xi = my_waypoints[widx]
+        prev_xi = prev_agent.traj_opt(init_xi, cube_state, prev_agent.n_models)
         xi_full.append(prev_xi)
 
     # execute trajectory to get reward
