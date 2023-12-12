@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 import robosuite as suite
 from robosuite.controllers import load_controller_config
 
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation
 import pickle
 import os, sys
 
@@ -31,14 +31,14 @@ def train():
     has_continuous_action_space = True  # continuous action space; else discrete
 
     # parameters you may need to tune for each environment
-    # probably you just need to tune the max_ep_len
-    max_ep_len = 200                    # max timesteps in one episode
+    # probably you just need to tune the num_waypoints
+    num_waypoints = 3                   # number of waypoints
     action_std = 0.1                    # starting std for action distribution (Multivariate Normal)
     action_std_decay_rate = 0.05        # linearly decay action_std (action_std = action_std - action_std_decay_rate)
     min_action_std = 0.05                # minimum action_std (stop decay after action_std <= min_action_std)
 
     # parameters you will not need to tune
-    log_freq = max_ep_len * 2           # log avg reward in the interval (in num timesteps)
+    log_freq = num_waypoints * 2           # log avg reward in the interval (in num timesteps)
     save_model_freq = int(1e5)          # save model frequency (in num timesteps)
     action_std_decay_freq = int(2e5)  # action_std decay frequency (in num timesteps)
 
@@ -48,7 +48,7 @@ def train():
 
     # default values recommended by repository
     # probably fine to leave these alone
-    update_timestep = max_ep_len * 4      # update policy every n timesteps
+    update_timestep = num_waypoints * 10      # update policy every n timesteps
     K_epochs = 80               # update policy for K epochs in one PPO update
     eps_clip = 0.2          # clip parameter for PPO
     gamma = 0.99            # discount factor
@@ -74,13 +74,6 @@ def train():
         use_latch=False,
     )
 
-    # add dimensions to env_action_space if you also want to rotate the end-effector
-    env_action_space = gym.spaces.Box(
-                low=-1.0,
-                high=+1.0,
-                shape=(4,),
-                dtype=np.float64)
-
     # state space dimension
     # modify this based on the state you are using for the current environment
     state_dim = 6
@@ -93,7 +86,7 @@ def train():
 
     ############# print all hyperparameters #############
     print("--------------------------------------------------------------------------------------------")
-    print("max timesteps per episode : ", max_ep_len)
+    print("number of waypoints per episode : ", num_waypoints)
     print("model saving frequency : " + str(save_model_freq) + " timesteps")
     print("log frequency : " + str(log_freq) + " timesteps")
     print("--------------------------------------------------------------------------------------------")
@@ -141,52 +134,74 @@ def train():
 
     # Training Loop
     total_numsteps = 0
+    updates = 0
     for i_episode in itertools.count(1):
 
         episode_reward = 0
         obs = env.reset()
 
-        # identify the state the policy should condition on
-        # this will likely change for each different environment
-        state = list(obs['robot0_eef_pos']) + list(obs['door_pos'])
-        state = np.array(state)  
+        # store home position
+        robot_home = np.copy(obs['robot0_eef_pos'])
 
-        for timestep in range(1, max_ep_len+1):
-
-            env.render()    # toggle this when we don't want to render
-
-            # select action with policy
-            action = ppo_agent.select_action(state)
-
-            # compute action for low-level controller
-            full_action = list(action[0:3]) + [0.]*3 + [action[3]]
-            full_action = np.array(full_action)
-
-            # take action
-            obs, reward, _, _ = env.step(full_action)
-
-            # saving reward and is_terminals
-            ppo_agent.buffer.rewards.append(reward)
-            ppo_agent.buffer.is_terminals.append(False)
-
-            total_numsteps += 1
-            episode_reward += reward
-
-            # update PPO agent
-            if total_numsteps % update_timestep == 0:
-                ppo_agent.update()
-
-            # if continuous action space; then decay action std of ouput action distribution
-            if has_continuous_action_space and total_numsteps % action_std_decay_freq == 0:
-                ppo_agent.decay_action_std(action_std_decay_rate, min_action_std)
+        for _ in range(num_waypoints):
 
             # identify the state the policy should condition on
             # this will likely change for each different environment
             state = list(obs['robot0_eef_pos']) + list(obs['door_pos'])
-            state = np.array(state)
+            state = np.array(state)  
+            segment_reward = 0
+
+            # get segment waypoint
+            waypoint = ppo_agent.select_action(state)
+
+            # center waypoint at the home position
+            waypoint_normalized = np.copy(waypoint)
+            waypoint_normalized[0:3] += robot_home
+
+            # number of steps per waypoint
+            for timestep in range(40):
+
+                env.render()    # toggle this when we don't want to render
+
+                # get error between waypoint and current position and orientation around z axis
+                error = waypoint_normalized[0:3] - obs['robot0_eef_pos']
+                error_angle = 0 - Rotation.from_quat(obs['robot0_eef_quat']).as_euler('xyz')[-1]
+
+                # # if you ever need the rotation around the z axis of an object or 
+                # # of the robot end-effector, use this to get the angle:
+                # angle = Rotation.from_quat(obs['robot0_eef_quat']).as_euler('xyz')[-1]
+
+                if timestep > 25:
+                    # open or close the gripper
+                    full_action = np.array([0.]*6 + [waypoint_normalized[3]])
+                else:
+                    # move to the waypoint
+                    full_action = np.array(list(10. * error) + [0., 0., 1.0 * error_angle, 0.])
+
+                # take action
+                obs, reward, _, _ = env.step(full_action)
+                total_numsteps += 1
+                segment_reward += reward
+                episode_reward += reward
+
+            # saving reward and is_terminals
+            # I scaled up the reward here. It is nonstandard, but I think the differences were too small for the 
+            # robot to pick up on them. This led to better performance.
+            ppo_agent.buffer.rewards.append(segment_reward * 100)
+            ppo_agent.buffer.is_terminals.append(False)
+            updates += 1
+
+            # update PPO agent
+            if updates % update_timestep == 0:
+                print("here")
+                ppo_agent.update()
+
+            # if continuous action space; then decay action std of ouput action distribution
+            if has_continuous_action_space and updates % action_std_decay_freq == 0:
+                ppo_agent.decay_action_std(action_std_decay_rate, min_action_std)
 
         writer.add_scalar('reward', episode_reward, i_episode)
-        print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, timestep, round(episode_reward, 2)))
+        print("Episode: {}, total numsteps: {}, reward: {}".format(i_episode, total_numsteps, round(episode_reward, 2)))
 
 
     # print total training time
