@@ -197,9 +197,9 @@ class PickPlace(SingleArmEnv):
     ):
         # task settings
         self.single_object_mode = single_object_mode
-        self.object_to_id = {"milk": 0, "bread": 1, "cereal": 2, "can": 3}
+        self.object_to_id = {"milk": 3, "bread": 1, "cereal": 2, "can": 0}
         self.object_id_to_sensors = {}  # Maps object id to sensor names for that object
-        self.obj_names = ["milk", "bread", "cereal", "can"]
+        self.obj_names = ["can", "bread", "cereal", "milk"]
         self.obj_type = object_type
         if object_type is not None:
             assert object_type in self.object_to_id.keys(), "invalid @object_type argument - choose one of {}".format(
@@ -279,7 +279,7 @@ class PickPlace(SingleArmEnv):
         """
         # compute sparse rewards
         self._check_success()
-        reward = np.sum(self.objects_in_bins)
+        reward = np.sum(self.objects_in_bins)*5
 
         # add in shaped rewards
         if self.reward_shaping:
@@ -305,11 +305,11 @@ class PickPlace(SingleArmEnv):
                 - (float) lifting reward
                 - (float) hovering reward
         """
-
-        reach_mult = 0.1
+        hovr_mult = 0.1
+        reach_mult = 0.2
         grasp_mult = 0.35
         lift_mult = 0.5
-        hover_mult = 0.7
+        hover_mult = 1.7
 
         # filter out objects that are already in the correct bins
         active_objs = []
@@ -319,6 +319,7 @@ class PickPlace(SingleArmEnv):
             active_objs.append(obj)
 
         # reaching reward governed by distance to closest object
+        r_hovr = 0.0
         r_reach = 0.0
         if active_objs:
             # get reaching reward via minimum distance to a target object
@@ -332,6 +333,18 @@ class PickPlace(SingleArmEnv):
                 for active_obj in active_objs
             ]
 
+            # gripper_xy = self.sim.data.get_site_xpos(self.robots[0].gripper.important_sites["grip_site"])
+
+            # obj_xy = self.sim.data.body_xpos[self.obj_body_id[self.obj_type]]
+
+            # obj_xy[2] += 0.1
+
+            # dist_xyz = np.linalg.norm(gripper_xy - obj_xy)
+            # dist_xy = np.linalg.norm(gripper_xy[:2] - obj_xy[:2])
+
+            # r_hovr = (1 - np.tanh(10.0 * dist_xyz)) * hovr_mult
+            
+            # if dist_xy < 0.05:
             r_reach = (1 - np.tanh(10.0 * min(dists))) * reach_mult
 
 
@@ -361,13 +374,15 @@ class PickPlace(SingleArmEnv):
         # lifting reward for picking up an object
         r_lift = 0.0
         if active_objs and r_grasp > 0.0:
-            z_target = self.bin2_pos[2] + 0.25
+            z_target = self.bin2_pos[2] + 0.1
             object_z_locs = self.sim.data.body_xpos[[self.obj_body_id[active_obj.name] for active_obj in active_objs]][
                 :, 2
             ]
             z_dists = np.maximum(z_target - object_z_locs, 0.0)
             # r_lift = grasp_mult + (1 - np.tanh(15.0 * min(z_dists))) * (lift_mult - grasp_mult)
-            r_lift = (1 - np.tanh(15.0 * min(z_dists))) * (lift_mult)
+            obj_lifted = np.any(object_z_locs > z_target)
+            r_lift = lift_mult if obj_lifted else 0.0
+            # r_lift = (1 - np.tanh(15.0 * min(z_dists))) * (lift_mult)
 
         # hover reward for getting object above bin
         r_hover = 0.0
@@ -390,12 +405,12 @@ class PickPlace(SingleArmEnv):
             # those on the right get max(r_lift) added (to encourage dropping)
             r_hover_all = np.zeros(len(active_objs))
             # r_hover_all[objects_above_bins] = lift_mult + (1 - np.tanh(10.0 * dists[objects_above_bins])) * (hover_mult - lift_mult)
-            r_hover_all[objects_above_bins] = (1 - np.tanh(10.0 * dists[objects_above_bins])) * (hover_mult)
+            r_hover_all[objects_above_bins] = (1 - np.tanh(1.0 * dists[objects_above_bins])) * (hover_mult)
             # r_hover_all[objects_not_above_bins] = r_lift + (1 - np.tanh(10.0 * dists[objects_not_above_bins])) * (hover_mult - lift_mult)
             r_hover_all[objects_not_above_bins] = (1 - np.tanh(10.0 * dists[objects_not_above_bins])) * (hover_mult)
             r_hover = np.max(r_hover_all)
 
-        return np.array([r_reach, r_grasp, r_lift, r_hover])
+        return np.array([r_hovr, r_reach, r_grasp, r_lift, r_hover])
 
     def not_in_bin(self, obj_pos, bin_id):
 
@@ -511,7 +526,7 @@ class PickPlace(SingleArmEnv):
         self.objects = []
         self.visual_objects = []
         for vis_obj_cls, obj_name in zip(
-            (MilkVisualObject, BreadVisualObject, CerealVisualObject, CanVisualObject),
+            (CanVisualObject, BreadVisualObject, CerealVisualObject, MilkVisualObject),
             # (MilkVisualObject),
             # (BreadVisualObject),
             # (CerealVisualObject),
@@ -523,7 +538,7 @@ class PickPlace(SingleArmEnv):
             self.visual_objects.append(vis_obj)
 
         for obj_cls, obj_name in zip(
-            (MilkObject, BreadObject, CerealObject, CanObject),
+            (CanObject, BreadObject, CerealObject, MilkObject),
             # (MilkObject),
             # (BreadObject),
             # (CerealObject),

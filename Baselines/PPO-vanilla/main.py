@@ -3,6 +3,7 @@ import glob
 import time
 import datetime
 import itertools
+import argparse
 
 import torch
 import numpy as np
@@ -21,7 +22,15 @@ import os, sys
 
 
 ################################### Training ###################################
-def train():
+def train(args):
+    save_data = {'episode': [], 'reward': []}
+    if args.object == 'test':
+        save_name = 'models/' + args.env + '/' + args.run_num
+    else:
+        save_name = 'models/' + args.env + '/' + args.object + '/' + args.run_num
+
+    if not os.path.exists(save_name):
+        os.makedirs(save_name)
     print("============================================================================================")
 
     ####### initialize environment hyperparameters ######
@@ -32,7 +41,7 @@ def train():
 
     # parameters you may need to tune for each environment
     # probably you just need to tune the max_ep_len
-    max_ep_len = 200                    # max timesteps in one episode
+    max_ep_len = 50*args.num_wp         # max timesteps in one episode
     action_std = 0.1                    # starting std for action distribution (Multivariate Normal)
     action_std_decay_rate = 0.05        # linearly decay action_std (action_std = action_std - action_std_decay_rate)
     min_action_std = 0.05                # minimum action_std (stop decay after action_std <= min_action_std)
@@ -62,15 +71,17 @@ def train():
 
     # create environment instance
     env = suite.make(
-        env_name="Door",
-        robots="Panda",
+        env_name=args.env, # try with other tasks like "Stack" and "Door"
+        robots="Panda",  # try with other robots like "Sawyer" and "Jaco"
         controller_configs=controller_config,
-        has_renderer=True, # toggle this when we want to render
+        has_renderer=args.render,
         reward_shaping=True,
         control_freq=10,
         has_offscreen_renderer=False,
         use_camera_obs=False,
         initialization_noise=None,
+        single_object_mode=2,
+        object_type=args.object,
         use_latch=False,
     )
 
@@ -81,9 +92,20 @@ def train():
                 shape=(4,),
                 dtype=np.float64)
 
+    obs = env.reset()
+    if args.env == 'Stack':
+        objs = np.concatenate((obs['cubeA_pos'], obs['cubeB_pos']), axis=-1) 
+    elif args.env == 'Lift':
+        objs = obs['cube_pos']
+    elif args.env == 'PickPlace':
+        objs = obs[args.object+'_pos']
+    elif args.env == 'NutAssembly':
+        nut = 'RoundNut'# if obs['nut_id'] == 0 else 'RoundNut'
+        objs = obs[nut + '_pos']
+
     # state space dimension
     # modify this based on the state you are using for the current environment
-    state_dim = 6
+    state_dim = len(obs['robot0_eef_pos']) + len(objs)
     # action space dimension
     # modify this if you want to rotate the gripper
     action_dim = 4
@@ -146,9 +168,19 @@ def train():
         episode_reward = 0
         obs = env.reset()
 
+        if args.env == 'Stack':
+            objs = np.concatenate((obs['cubeA_pos'], obs['cubeB_pos']), axis=-1) 
+        elif args.env == 'Lift':
+            objs = obs['cube_pos']
+        elif args.env == 'PickPlace':
+            objs = obs[args.object+'_pos']
+        elif args.env == 'NutAssembly':
+            nut = 'RoundNut'# if obs['nut_id'] == 0 else 'RoundNut'
+            objs = obs[nut + '_pos']
+
         # identify the state the policy should condition on
         # this will likely change for each different environment
-        state = list(obs['robot0_eef_pos']) + list(obs['door_pos'])
+        state = list(obs['robot0_eef_pos']) + list(objs)
         state = np.array(state)  
 
         for timestep in range(1, max_ep_len+1):
@@ -180,9 +212,19 @@ def train():
             if has_continuous_action_space and total_numsteps % action_std_decay_freq == 0:
                 ppo_agent.decay_action_std(action_std_decay_rate, min_action_std)
 
+            if args.env == 'Stack':
+                objs = np.concatenate((obs['cubeA_pos'], obs['cubeB_pos']), axis=-1) 
+            elif args.env == 'Lift':
+                objs = obs['cube_pos']
+            elif args.env == 'PickPlace':
+                objs = obs[args.object+'_pos']
+            elif args.env == 'NutAssembly':
+                nut = 'RoundNut'# if obs['nut_id'] == 0 else 'RoundNut'
+                objs = obs[nut + '_pos']
+
             # identify the state the policy should condition on
             # this will likely change for each different environment
-            state = list(obs['robot0_eef_pos']) + list(obs['door_pos'])
+            state = list(obs['robot0_eef_pos']) + list(objs)
             state = np.array(state)
 
         writer.add_scalar('reward', episode_reward, i_episode)
@@ -199,6 +241,12 @@ def train():
 
 
 if __name__ == '__main__':
-
-    train()
+    p = argparse.ArgumentParser()
+    p.add_argument('--env', type=str, required=True)
+    p.add_argument('--run_num', type=str, default='test')
+    p.add_argument('--object', type=str, default='test')
+    p.add_argument('--num_wp', type=int, default=5)
+    p.add_argument('--render', action='store_true', default=False)
+    args = p.parse_args()
+    train(args)
     

@@ -262,7 +262,7 @@ class ManipulationEnv(RobotEnv):
             target_pos = self.sim.data.get_body_xpos(target.root_body)
         elif target_type == "body":
             target_pos = self.sim.data.get_body_xpos(target)
-            # target_pos[2] += 0.03
+            target_pos[2] += 0.0275
         elif target_type == "site":
             target_pos = self.sim.data.get_site_xpos(target)
         else:

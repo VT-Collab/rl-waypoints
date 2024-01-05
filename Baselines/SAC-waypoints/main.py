@@ -3,6 +3,8 @@ import datetime
 import gymnasium as gym
 import numpy as np
 import itertools
+import pickle
+import os, sys
 import torch
 from sac import SAC
 from torch.utils.tensorboard import SummaryWriter
@@ -17,10 +19,15 @@ parser.add_argument('--alpha', type=float, default=0.1, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.1)')
 # tune this to change the number of waypoints
-parser.add_argument('--num_waypoints', type=int, default=3, metavar='N',
+parser.add_argument('--num_wp', type=int, default=3, metavar='N',
                     help='number of waypoints')
+parser.add_argument('--env', type=str, required=True)
+parser.add_argument('--run_num', type=str, default='test')
+parser.add_argument('--object', type=str, default='test')
+parser.add_argument('--render', action='store_true', default=False)
+
 # tune this to change how many random waypoints at the start of the RL loop
-parser.add_argument('--start_steps', type=int, default=40, metavar='N',
+parser.add_argument('--start_steps', type=int, default=100, metavar='N',
                     help='Steps sampling random waypoints')
 # probably don't tune any of the rest
 parser.add_argument('--policy', default="Gaussian",
@@ -46,22 +53,44 @@ parser.add_argument('--cuda', action="store_true",
 args = parser.parse_args()
 
 
+save_data = {'episode': [], 'reward': []}
+if args.object == 'test':
+    save_name = 'models/' + args.env + '/' + args.run_num
+else:
+    save_name = 'models/' + args.env + '/' + args.object + '/' + args.run_num
+
+if not os.path.exists(save_name):
+    os.makedirs(save_name)
 # load default controller parameters for Operational Space Control (OSC)
 controller_config = load_controller_config(default_controller="OSC_POSE")
 
 # create environment instance
 env = suite.make(
-    env_name="Door",
+    env_name=args.env,
     robots="Panda",
     controller_configs=controller_config,
-    has_renderer=True, # toggle this when we want to render
+    has_renderer=args.render, # toggle this when we want to render
     reward_shaping=True,
     control_freq=10,
     has_offscreen_renderer=False,
     use_camera_obs=False,
     initialization_noise=None,
+    single_object_mode=2,
+    object_type=args.object,
     use_latch=False,
 )
+
+obs = env.reset()
+if args.env == 'Stack':
+    objs = np.concatenate((obs['cubeA_pos'], obs['cubeB_pos']), axis=-1) 
+elif args.env == 'Lift':
+    objs = obs['cube_pos']
+elif args.env == 'PickPlace':
+    objs = obs[args.object+'_pos']
+elif args.env == 'NutAssembly':
+    nut = 'RoundNut'# if obs['nut_id'] == 0 else 'RoundNut'
+    objs = obs[nut + '_pos']
+
 
 # Agent
 # add dimensions to env_action_space if you also want to rotate the end-effector
@@ -71,7 +100,7 @@ env_action_space = gym.spaces.Box(
             shape=(4,),
             dtype=np.float64)
 # first argument is the dimension of the state space, will change for each environment
-agent = SAC(6, env_action_space, args)
+agent = SAC(len(obs['robot0_eef_pos']) + len(objs), env_action_space, args)
 
 # Tensorboard
 run_name = 'runs/sac_' + datetime.datetime.now().strftime("%H-%M")
@@ -89,14 +118,25 @@ for i_episode in itertools.count(1):
     episode_steps = 0
     obs = env.reset()
 
+    if args.env == 'Stack':
+            objs = np.concatenate((obs['cubeA_pos'], obs['cubeB_pos']), axis=-1) 
+    elif args.env == 'Lift':
+        objs = obs['cube_pos']
+    elif args.env == 'PickPlace':
+        objs = obs[args.object+'_pos']
+    elif args.env == 'NutAssembly':
+        nut = 'RoundNut'# if obs['nut_id'] == 0 else 'RoundNut'
+        objs = obs[nut + '_pos']
+
+
     # store home position
     robot_home = np.copy(obs['robot0_eef_pos'])
 
-    for _ in range(args.num_waypoints):
+    for _ in range(args.num_wp):
 
         # identify the state the policy should condition on
         # this will likely change for each different environment
-        state = list(obs['robot0_eef_pos']) + list(obs['door_pos'])
+        state = list(obs['robot0_eef_pos']) + list(objs)
         state = np.array(state)
         start_state = np.copy(state)
         segment_reward = 0
@@ -112,7 +152,7 @@ for i_episode in itertools.count(1):
         waypoint_normalized[0:3] += robot_home
 
         # number of steps per waypoint
-        for timestep in range(40):
+        for timestep in range(50):
 
             env.render()    # toggle this when we don't want to render
 
@@ -132,12 +172,14 @@ for i_episode in itertools.count(1):
             # # of the robot end-effector, use this to get the angle:
             # angle = Rotation.from_quat(obs['robot0_eef_quat']).as_euler('xyz')[-1]
 
-            if timestep > 25:
+            if episode_steps < 10:
+                full_action = np.array(list(10. * error) + [0.]*3 + [-1.])
+            if timestep > 35:
                 # open or close the gripper
                 full_action = np.array([0.]*6 + [waypoint_normalized[3]])
             else:
                 # move to the waypoint
-                full_action = np.array(list(10. * error) + [0., 0., 1.0 * error_angle, 0.])
+                full_action = np.array(list(10. * error) + [0.]*4) #[0., 0., 1.0 * error_angle, 0.])
 
             # take action
             obs, reward, _, _ = env.step(full_action)
@@ -146,14 +188,27 @@ for i_episode in itertools.count(1):
             episode_reward += reward
             segment_reward += reward
 
+        if args.env == 'Stack':
+            objs = np.concatenate((obs['cubeA_pos'], obs['cubeB_pos']), axis=-1) 
+        elif args.env == 'Lift':
+            objs = obs['cube_pos']
+        elif args.env == 'PickPlace':
+            objs = obs[args.object+'_pos']
+        elif args.env == 'NutAssembly':
+            nut = 'RoundNut'# if obs['nut_id'] == 0 else 'RoundNut'
+            objs = obs[nut + '_pos']
+
         # identify the state the policy should condition on
         # this will likely change for each different environment
-        next_state = list(obs['robot0_eef_pos']) + list(obs['door_pos'])
+        next_state = list(obs['robot0_eef_pos']) + list(objs)
         next_state = np.array(next_state)
 
         # notice that you push the start_state and "final_state" across the waypoint
         memory.push(start_state, waypoint, segment_reward, next_state, 1.0)
-
+    
+    save_data['episode'].append(i_episode)
+    save_data['reward'].append(episode_reward)
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+    pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
 
