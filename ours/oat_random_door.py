@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from memory import MyMemory
-from oat_method_random import OAT
+from oat_method_random_door import OAT
 import gym
 import datetime
 from torch.utils.tensorboard import SummaryWriter
@@ -10,6 +10,7 @@ from robosuite.controllers import load_controller_config
 import pickle
 import argparse
 from tqdm import tqdm
+from scipy.spatial.transform import Rotation as R
 
 def run_ours(args):
     # training parameters
@@ -43,8 +44,6 @@ def run_ours(args):
     num_wp = args.num_wp
     wp_id = 1
     obs = env.reset()
-    print(obs.keys())
-    exit()
     if args.env == 'Stack':
         objs = np.concatenate((obs['cubeA_pos'], obs['cubeB_pos']), axis=-1) 
     elif args.env == 'Lift':
@@ -55,9 +54,9 @@ def run_ours(args):
         nut = 'RoundNut'# if obs['nut_id'] == 0 else 'RoundNut'
         objs = obs[nut + '_pos']
     elif args.env == 'Door':
-        objs = obs['door_pos']
+        objs = np.concatenate((obs['door_pos'], obs['handle_pos']), axis=-1)
 
-    agent = OAT(state_dim=4, objs=objs, wp_id=wp_id, save_name=save_name)
+    agent = OAT(state_dim=7, objs=objs, wp_id=wp_id, save_name=save_name)
 
 
     # Memory
@@ -66,7 +65,7 @@ def run_ours(args):
     # Logger
     run_name = 'runs/ours_' + args.run_num + datetime.datetime.now().strftime("%H-%M")
     writer = SummaryWriter(run_name)
-    epoch_wp =500
+    epoch_wp =300
     EPOCHS = epoch_wp*num_wp
 
 
@@ -78,14 +77,14 @@ def run_ours(args):
             # agent.eval_best_model(memory, save_name)
 
             wp_id += 1
-            agent = OAT(state_dim=4, objs=objs, wp_id=wp_id, save_name=save_name)
+            agent = OAT(state_dim=7, objs=objs, wp_id=wp_id, save_name=save_name)
              # Memory
             memory = MyMemory()
 
 
         i_episode = i_episode%epoch_wp
 
-        if np.random.rand()<0.05 and i_episode<400 and i_episode>1:
+        if np.random.rand()<0.05 and i_episode<250 and i_episode>1:
             agent.reset_model(np.random.randint(10))
 
         # initialize variables
@@ -103,15 +102,22 @@ def run_ours(args):
         elif args.env == 'NutAssembly':
             nut = 'RoundNut'# if obs['nut_id'] == 0 else 'RoundNut'
             objs = obs[nut + '_pos']
+        elif args.env == 'Door':
+            objs = np.concatenate((obs['door_pos'], obs['handle_pos']), axis=-1)
 
 
         # select optimal trajectory
         traj_full = agent.traj_opt(i_episode, objs)
         
-        traj = traj_full[-4:]
+        traj = traj_full[-7:]
+        robot_ee = obs['robot0_eef_pos']
+        robot_quat = obs['robot0_eef_quat']
+
+        r = R.from_quat(robot_quat)
+        robot_eul = r.as_euler('xyz', degrees=False)
         
-        traj_mat = np.reshape(traj_full, (wp_id,4))[:, :3] + obs['robot0_eef_pos']
-        gripper_mat = np.reshape(traj_full, (wp_id, 4))[:, 3:] 
+        traj_mat = np.reshape(traj_full, (wp_id,7))[:, :6] + np.concatenate((robot_ee, robot_eul), axis=-1)
+        gripper_mat = np.reshape(traj_full, (wp_id, 7))[:, 6:] 
 
         # tqdm.write("traj = {}, {}".format(traj_mat, gripper_mat))
 
@@ -129,17 +135,22 @@ def run_ours(args):
                 env.render()    # toggle this when we don't want to render
 
             # convert traj to actions
-            state = obs['robot0_eef_pos']
+            robot_ee = obs['robot0_eef_pos']
+            robot_quat = obs['robot0_eef_quat']
+
+            r = R.from_quat(robot_quat)
+            robot_eul = r.as_euler('xyz', degrees=False)
+            state = np.concatenate((obs['robot0_eef_pos'], robot_eul), axis=-1)
             g_state = obs['robot0_gripper_qpos']
             widx = int(np.floor(timestep / (50)))
             error = traj_mat[widx, :] - state
             if timestep < 10:
-                full_action = np.array(list(10. * error) + [0.]*3 + [-1.])
+                full_action = np.array(list(10. * error) + [-1.])
             elif time_s >= 35:
                 # full_action = np.array(list(10. * error) + [0.]*3 + list(gripper_mat[widx]))
                 full_action = np.array([0.]*6 + list(gripper_mat[widx]))
             else:
-                full_action = np.array(list(10. * error) + [0.]*4)
+                full_action = np.array(list(10. * error) + [0.])
             time_s += 1
             if time_s >= 50:
                 time_s = 1
@@ -165,7 +176,7 @@ def run_ours(args):
         writer.add_scalar('reward', episode_reward, i_episode)
         tqdm.write("wp_id: {}, Episode: {}, Reward_full: {}; Reward: {}, Predicted: {}".format(wp_id, i_episode, round(episode_reward, 2), round(train_reward, 2), round(agent.get_avg_reward(traj_full), 2)))
 
-    pickle.dump(save_data, open('models/' + save_name + '/data.pkl', 'wb'))
+        pickle.dump(save_data, open('models/' + save_name + '/data.pkl', 'wb'))
 
 
 

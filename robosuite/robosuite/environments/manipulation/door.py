@@ -159,6 +159,8 @@ class Door(SingleArmEnv):
         camera_segmentations=None,  # {None, instance, class, element}
         renderer="mujoco",
         renderer_config=None,
+        single_object_mode=None,
+        object_type=None,
     ):
         # settings for table top (hardcoded since it's not an essential part of the environment)
         self.table_full_size = (0.8, 0.3, 0.05)
@@ -293,9 +295,12 @@ class Door(SingleArmEnv):
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
                 mujoco_objects=self.door,
-                x_range=[0.08, 0.08],
-                y_range=[-0.0, 0.0],
-                rotation=(-np.pi / 2.0 , -np.pi / 2.0),
+                # x_range=[0.08, 0.08],
+                # y_range=[-0.0, 0.0],
+                # rotation=(-np.pi / 2.0 , -np.pi / 2.0),
+                x_range=[0.07, 0.09],
+                y_range=[-0.01, 0.01],
+                rotation=(-np.pi / 2.0 - 0.25, -np.pi / 2.0),
                 rotation_axis="z",
                 ensure_object_boundary_in_range=False,
                 ensure_valid_placement=True,
