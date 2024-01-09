@@ -195,12 +195,21 @@ class PickPlace(SingleArmEnv):
         renderer_config=None,
         use_latch=False,
     ):
+        self.obj_type = object_type
+
         # task settings
         self.single_object_mode = single_object_mode
-        self.object_to_id = {"milk": 3, "bread": 1, "cereal": 2, "can": 0}
+        if self.obj_type == "can":
+            self.object_to_id = {"milk": 3, "bread": 1, "cereal": 2, "can": 0}
+        else:
+            self.object_to_id = {"milk": 0, "bread": 1, "cereal": 2, "can": 3}
+
         self.object_id_to_sensors = {}  # Maps object id to sensor names for that object
-        self.obj_names = ["can", "bread", "cereal", "milk"]
-        self.obj_type = object_type
+        if self.obj_type == "can":
+            self.obj_names = ["can", "bread", "cereal", "milk"]
+        else:
+            self.obj_names = ["milk", "bread", "cereal", "can"]
+
         if object_type is not None:
             assert object_type in self.object_to_id.keys(), "invalid @object_type argument - choose one of {}".format(
                 list(self.object_to_id.keys())
@@ -527,10 +536,9 @@ class PickPlace(SingleArmEnv):
         self.visual_objects = []
         for vis_obj_cls, obj_name in zip(
             (CanVisualObject, BreadVisualObject, CerealVisualObject, MilkVisualObject),
-            # (MilkVisualObject),
-            # (BreadVisualObject),
-            # (CerealVisualObject),
-            # (CanVisualObject),
+            self.obj_names,
+        ) if self.obj_type=="can" else zip(
+            (MilkVisualObject, BreadVisualObject, CerealVisualObject, CanVisualObject),
             self.obj_names,
         ):
             vis_name = "Visual" + obj_name
@@ -539,10 +547,9 @@ class PickPlace(SingleArmEnv):
 
         for obj_cls, obj_name in zip(
             (CanObject, BreadObject, CerealObject, MilkObject),
-            # (MilkObject),
-            # (BreadObject),
-            # (CerealObject),
-            # (CanObject),
+            self.obj_names,
+        ) if self.obj_type=="can" else zip(
+            (MilkObject, BreadObject, CerealObject, CanObject),
             self.obj_names,
         ):
             obj = obj_cls(name=obj_name)

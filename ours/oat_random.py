@@ -181,6 +181,7 @@ if __name__=='__main__':
 """
 For bread: target_pos[2] += 0.0
 For milk: target_pos[2] += 0.05
-For bread: target_pos[2] += 0.0
+For can: target_pos[2] += 0.0275
+Interchange positions of milk and can for placement in pick place task.
 
 """

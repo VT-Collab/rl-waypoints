@@ -11,6 +11,7 @@ import pickle
 import argparse
 from tqdm import tqdm
 from scipy.spatial.transform import Rotation as R
+import time
 
 def run_ours(args):
     # training parameters
@@ -37,7 +38,7 @@ def run_ours(args):
         initialization_noise=None,
         single_object_mode=2,
         object_type=args.object,
-        use_latch=False,
+        use_latch=True,
     )
 
     # Agent
@@ -75,6 +76,7 @@ def run_ours(args):
         if i_episode % epoch_wp == 0:
             agent.save_model(save_name)
             # agent.eval_best_model(memory, save_name)
+            time.sleep(1)
 
             wp_id += 1
             agent = OAT(state_dim=7, objs=objs, wp_id=wp_id, save_name=save_name)
