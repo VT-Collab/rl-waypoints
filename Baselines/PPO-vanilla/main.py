@@ -184,8 +184,8 @@ def train(args):
         state = np.array(state)  
 
         for timestep in range(1, max_ep_len+1):
-
-            env.render()    # toggle this when we don't want to render
+            if args.render:
+                env.render()    # toggle this when we don't want to render
 
             # select action with policy
             action = ppo_agent.select_action(state)
@@ -229,6 +229,12 @@ def train(args):
 
         writer.add_scalar('reward', episode_reward, i_episode)
         print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, timestep, round(episode_reward, 2)))
+        save_data['episode'].append(i_episode)
+        save_data['reward'].append(episode_reward)
+        pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
+
+        if i_episode==599:
+            break
 
 
     # print total training time

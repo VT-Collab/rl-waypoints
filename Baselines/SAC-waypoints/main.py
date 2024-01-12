@@ -27,7 +27,7 @@ parser.add_argument('--object', type=str, default='test')
 parser.add_argument('--render', action='store_true', default=False)
 
 # tune this to change how many random waypoints at the start of the RL loop
-parser.add_argument('--start_steps', type=int, default=100, metavar='N',
+parser.add_argument('--start_steps', type=int, default=75, metavar='N',
                     help='Steps sampling random waypoints')
 # probably don't tune any of the rest
 parser.add_argument('--policy', default="Gaussian",
@@ -36,9 +36,9 @@ parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='target smoothing coefficient(τ) (default: 0.005)')
-parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
+parser.add_argument('--lr', type=float, default=0.0001, metavar='G',
                     help='learning rate (default: 0.0003)')
-parser.add_argument('--batch_size', type=int, default=256, metavar='N',
+parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                     help='batch size (default: 256)')
 parser.add_argument('--hidden_size', type=int, default=256, metavar='N',
                     help='hidden size (default: 256)')
@@ -153,8 +153,8 @@ for i_episode in itertools.count(1):
 
         # number of steps per waypoint
         for timestep in range(50):
-
-            env.render()    # toggle this when we don't want to render
+            if args.render:
+                env.render()    # toggle this when we don't want to render
 
             if len(memory) > args.batch_size:
                 for i in range(args.updates_per_step):
@@ -174,7 +174,7 @@ for i_episode in itertools.count(1):
 
             if episode_steps < 10:
                 full_action = np.array(list(10. * error) + [0.]*3 + [-1.])
-            if timestep > 35:
+            if timestep > 40:
                 # open or close the gripper
                 full_action = np.array([0.]*6 + [waypoint_normalized[3]])
             else:
@@ -211,4 +211,9 @@ for i_episode in itertools.count(1):
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
     pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
+    if i_episode == 599:
+        exit()
 
+"""
+Add heights for different objects in the Pick Place environment
+"""

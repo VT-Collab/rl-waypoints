@@ -19,7 +19,7 @@ parser.add_argument('--alpha', type=float, default=0.1, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.1)')
 # tune this to change the number of timesteps per interaction
-parser.add_argument('--num_steps', type=int, default=150, metavar='N',
+parser.add_argument('--num_steps', type=int, default=100, metavar='N',
                     help='number of steps per episode (default: 100)')
 parser.add_argument('--env', type=str, required=True)
 parser.add_argument('--run_num', type=str, default='test')
@@ -27,7 +27,7 @@ parser.add_argument('--object', type=str, default='test')
 parser.add_argument('--render', action='store_true', default=False)
 
 # tune this to change how many random actions at the start of the RL loop
-parser.add_argument('--start_steps', type=int, default=15000, metavar='N',
+parser.add_argument('--start_steps', type=int, default=5000, metavar='N',
                     help='Steps sampling random actions')
 # probably don't tune any of the rest
 parser.add_argument('--policy', default="Gaussian",
@@ -134,7 +134,8 @@ for i_episode in itertools.count(1):
     
     for timestep in range(1, args.num_steps+1):
 
-        env.render()    # toggle this when we don't want to render
+        if args.render:
+            env.render()    # toggle this when we don't want to render
 
         if args.start_steps > total_numsteps:
             action = env_action_space.sample()  # Sample random action
@@ -182,5 +183,7 @@ for i_episode in itertools.count(1):
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
     pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
+    if i_episode == 599:
+        exit()
 
 

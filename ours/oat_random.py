@@ -62,7 +62,7 @@ def run_ours(args):
     # Logger
     run_name = 'runs/ours_' + args.run_num + datetime.datetime.now().strftime("%H-%M")
     writer = SummaryWriter(run_name)
-    epoch_wp =500
+    epoch_wp =300
     EPOCHS = epoch_wp*num_wp
 
 
@@ -81,7 +81,7 @@ def run_ours(args):
 
         i_episode = i_episode%epoch_wp
 
-        if np.random.rand()<0.05 and i_episode<400 and i_episode>1:
+        if np.random.rand()<0.05 and i_episode<250 and i_episode>1:
             agent.reset_model(np.random.randint(10))
 
         # initialize variables

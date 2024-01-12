@@ -192,8 +192,9 @@ def train(args):
 
             # number of steps per waypoint
             for timestep in range(50):
-
-                env.render()    # toggle this when we don't want to render
+                
+                if args.render:
+                    env.render()    # toggle this when we don't want to render
 
                 # get error between waypoint and current position and orientation around z axis
                 error = waypoint_normalized[0:3] - obs['robot0_eef_pos']
@@ -203,7 +204,7 @@ def train(args):
                 # # of the robot end-effector, use this to get the angle:
                 # angle = Rotation.from_quat(obs['robot0_eef_quat']).as_euler('xyz')[-1]
 
-                if timestep > 35:
+                if timestep > 40:
                     # open or close the gripper
                     full_action = np.array([0.]*6 + [waypoint_normalized[3]])
                 else:
@@ -254,6 +255,8 @@ def train(args):
         print("Episode: {}, total numsteps: {}, reward: {}".format(i_episode, total_numsteps, round(episode_reward, 2)))
 
         pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
+        if i_episode == 599:
+            break
 
 
     # print total training time

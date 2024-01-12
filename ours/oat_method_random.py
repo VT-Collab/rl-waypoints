@@ -68,11 +68,11 @@ class OAT(object):
                         min_cost = res.fun
                         self.best_wp = res.x
                 # if idx == self.wp_id and np.random.rand() < 50/i_episode and i_episode>150 and i_episode<250:
-                if idx == self.wp_id and np.random.rand() < 0.5 and i_episode>250 and i_episode<400:
+                if idx == self.wp_id and np.random.rand() < 0.5 and i_episode>150 and i_episode<250:
                     tqdm.write("NOISE ADDED TO GRIPPER")
                     self.best_wp[-1] *= -1
                 # if idx == self.wp_id and np.random.rand() < 150/i_episode and i_episode>250 and i_episode<450:
-                if idx == self.wp_id and np.random.rand() < 0.5 and i_episode>250 and i_episode<400:
+                if idx == self.wp_id and np.random.rand() < 0.5 and i_episode>150 and i_episode<250:
                     tqdm.write("NOISE ADDED TO POSE")
                     self.best_wp[:3] += np.random.normal(0, 0.05, 3)
 
@@ -101,7 +101,7 @@ class OAT(object):
             return loss/self.n_models
 
         else:
-            if self.curr_episode < 250 :
+            if self.curr_episode < 150 :
                 critic, _ = self.models[self.reward_idx]
                 return critic(traj).item()
             else:
