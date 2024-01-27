@@ -233,7 +233,7 @@ def train(args):
         save_data['reward'].append(episode_reward)
         pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
 
-        if i_episode==599:
+        if i_episode==999:
             break
 
 

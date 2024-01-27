@@ -183,7 +183,7 @@ for i_episode in itertools.count(1):
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
     pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
-    if i_episode == 599:
+    if i_episode == 999:
         exit()
 
 
