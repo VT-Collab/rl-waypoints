@@ -1,5 +1,5 @@
 runs=(1 2 3 4 5)
 for run in ${runs[@]}; do
-    python3 main.py --env PickPlace --object can --run_num t$run --cuda
+    python3 main_door.py --env Door --run_num t$run --cuda
     wait
 done
