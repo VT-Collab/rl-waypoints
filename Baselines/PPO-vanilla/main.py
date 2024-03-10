@@ -232,8 +232,9 @@ def train(args):
         save_data['episode'].append(i_episode)
         save_data['reward'].append(episode_reward)
         pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
+        ppo_agent.save(save_name + '/models')
 
-        if i_episode==999:
+        if i_episode==args.num_episodes:
             break
 
 
@@ -253,6 +254,7 @@ if __name__ == '__main__':
     p.add_argument('--object', type=str, default='test')
     p.add_argument('--num_wp', type=int, default=5)
     p.add_argument('--render', action='store_true', default=False)
+    p.add_argument('--num_episodes', type=int, default=999)
     args = p.parse_args()
     train(args)
     

@@ -1,0 +1,21 @@
+name: Door
+
+env:
+  robot: 'Panda'
+  state_dim: 7
+  use_latch: False
+  wp_steps: 50
+  gripper_steps: 10
+  
+
+task:
+  action_space: 0.5
+  batch_size: 30
+  epoch_wp: 300
+
+  exploration_epoch: 75
+  ensemble_sampling_epoch: 150
+  averaging_noise_epoch: 250
+  rand_reset_epoch: 250
+
+  num_eval: 100

@@ -1,0 +1,21 @@
+name: NutAssembly
+
+env:
+  robot: 'Panda'
+  state_dim: 4
+  use_latch: False
+  wp_steps: 50
+  gripper_steps: 15
+  
+
+task:
+  action_space: 0.5
+  batch_size: 30
+  epoch_wp: 350
+
+  exploration_epoch: 75
+  ensemble_sampling_epoch: 175
+  averaging_noise_epoch: 300
+  rand_reset_epoch: 300
+
+  num_eval: 100

@@ -25,6 +25,7 @@ parser.add_argument('--env', type=str, required=True)
 parser.add_argument('--run_num', type=str, default='test')
 parser.add_argument('--object', type=str, default='test')
 parser.add_argument('--render', action='store_true', default=False)
+parser.add_argument('--num_episodes', type=int, default=999)
 
 # tune this to change how many random waypoints at the start of the RL loop
 parser.add_argument('--start_steps', type=int, default=75, metavar='N',
@@ -211,7 +212,8 @@ for i_episode in itertools.count(1):
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
     pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
-    if i_episode == 999:
+    agent.save_checkpoint(args.env, ckpt_path=save_name + '/models')
+    if i_episode == args.num_episodes:
         exit()
 
 """

@@ -82,7 +82,7 @@ def train(args):
         initialization_noise=None,
         single_object_mode=2,
         object_type=args.object,
-        use_latch=True,
+        use_latch=args.use_latch,
     )
 
     obs = env.reset()
@@ -271,7 +271,8 @@ def train(args):
         print("Episode: {}, total numsteps: {}, reward: {}".format(i_episode, total_numsteps, round(episode_reward, 2)))
 
         pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
-        if i_episode == 599:
+        ppo_agent.save(save_name + '/models')
+        if i_episode == args.num_episodes:
             break
 
 
@@ -291,6 +292,8 @@ if __name__ == '__main__':
     p.add_argument('--object', type=str, default='test')
     p.add_argument('--num_wp', type=int, default=5)
     p.add_argument('--render', action='store_true', default=False)
+    p.add_argument('--use_latch', action='store_true', default=False)
+    p.add_argument('--num_episodes', type=int, default=599)
     args = p.parse_args()
     train(args)
     

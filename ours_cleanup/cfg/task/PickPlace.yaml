@@ -1,0 +1,21 @@
+name: PickPlace
+
+env:
+  robot: 'Panda'
+  state_dim: 4
+  use_latch: False
+  wp_steps: 50
+  gripper_steps: 15
+  
+
+task:
+  action_space: 0.75
+  batch_size: 30
+  epoch_wp: 500
+
+  exploration_epoch: 75
+  ensemble_sampling_epoch: 250
+  averaging_noise_epoch: 400
+  rand_reset_epoch: 400
+
+  num_eval: 100

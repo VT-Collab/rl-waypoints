@@ -1,0 +1,24 @@
+task:
+  name: PickPlace
+  env:
+    robot: Panda
+    state_dim: 4
+    use_latch: false
+    wp_steps: 50
+    gripper_steps: 10
+  task:
+    action_space: 0.75
+    batch_size: 30
+    epoch_wp: 500
+    exploration_epoch: 75
+    ensemble_sampling_epoch: 250
+    averaging_noise_epoch: 400
+    rand_reset_epoch: 400
+    num_eval: 100
+env_name: ${task.name}
+object: cereal
+num_wp: 2
+run_name: test
+n_inits: 5
+render: true
+train: true

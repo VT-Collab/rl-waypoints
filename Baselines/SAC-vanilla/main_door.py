@@ -25,6 +25,8 @@ parser.add_argument('--env', type=str, required=True)
 parser.add_argument('--run_num', type=str, default='test')
 parser.add_argument('--object', type=str, default='test')
 parser.add_argument('--render', action='store_true', default=False)
+parser.add_argument('--use_latch', action='store_true', default=False)
+parser.add_argument('--num_episodes', type=int, default=999)
 
 # tune this to change how many random actions at the start of the RL loop
 parser.add_argument('--start_steps', type=int, default=5000, metavar='N',
@@ -77,7 +79,7 @@ env = suite.make(
     initialization_noise=None,
     single_object_mode=2,
     object_type=args.object,
-    use_latch=False,
+    use_latch=args.use_latch,
 )
 
 obs = env.reset()
@@ -189,7 +191,8 @@ for i_episode in itertools.count(1):
     writer.add_scalar('reward', episode_reward, i_episode)
     print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
     pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
-    if i_episode == 599:
+    agent.save_checkpoint(args.env, ckpt_path=save_name + '/models')
+    if i_episode == args.num_episodes:
         exit()
 
 

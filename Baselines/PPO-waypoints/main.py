@@ -204,7 +204,7 @@ def train(args):
                 # # of the robot end-effector, use this to get the angle:
                 # angle = Rotation.from_quat(obs['robot0_eef_quat']).as_euler('xyz')[-1]
 
-                if timestep > 40:
+                if timestep > 35:
                     # open or close the gripper
                     full_action = np.array([0.]*6 + [waypoint_normalized[3]])
                 else:
@@ -255,7 +255,8 @@ def train(args):
         print("Episode: {}, total numsteps: {}, reward: {}".format(i_episode, total_numsteps, round(episode_reward, 2)))
 
         pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
-        if i_episode == 599:
+        ppo_agent.save(save_name + '/models')
+        if i_episode == args.num_episodes:
             break
 
 
@@ -275,6 +276,7 @@ if __name__ == '__main__':
     p.add_argument('--object', type=str, default='test')
     p.add_argument('--num_wp', type=int, default=5)
     p.add_argument('--render', action='store_true', default=False)
+    p.add_argument('--num_episodes', type=int, default=999)
     args = p.parse_args()
     train(args)
     

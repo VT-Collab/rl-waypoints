@@ -9,100 +9,106 @@ p = argparse.ArgumentParser()
 p.add_argument('--env', type=str, default='Lift')
 args = p.parse_args()
 
-folders = ['t1', 't2', 't3', 't4', 't5']
+# folders = ['t1', 't2', 't3', 't4', 't5']
+folders = ['milk/t1', 'milk/t2', 'milk/t3', 'milk/t4', 'milk/t5', 'can/t1', 'can/t2', 'can/t3', 'can/t4', 'can/t5', 'bread/t1', 'bread/t2', 'bread/t3', 'bread/t4', 'bread/t5']
 # file_name = 'models/'+ args.env + '/' + folder + '/data.pkl'
 rewards = []
 
 for folder in folders:
     file_name = 'ours/models/'+ args.env + '/' + folder + '/data.pkl'
-    rewards.append(pickle.load(open(file_name, 'rb'))['reward'][:599])
+    rewards.append(pickle.load(open(file_name, 'rb'))['reward'][:999])
 
 rewards = np.array(rewards)
 
-ms, ss = np.mean(rewards, axis=0), np.std(rewards, axis=0)/np.sqrt(5)
-ms = savgol_filter(ms, 5, 2)
-ss = savgol_filter(ss, 5, 2)
+ms, ss = np.mean(rewards, axis=0), np.std(rewards, axis=0)/np.sqrt(len(folders))
+ms = savgol_filter(ms, 50, 10)
+ss = savgol_filter(ss, 50, 10)
 
 x = range(len(rewards[0]))
 plt.fill_between(x, ms+ss, ms-ss, color='blue', alpha=0.2)
-plt.plot(x, ms, 'b--')
+plt.plot(x, ms, 'b-')
 
 
-folders = ['t1', 't2', 't3', 't4', 't5']
+# folders = ['t1', 't2', 't3', 't4', 't5']
+folders = ['milk/t1', 'milk/t2', 'milk/t3', 'milk/t4', 'milk/t5', 'can/t1', 'can/t2', 'can/t3', 'can/t4', 'can/t5', 'bread/t1', 'bread/t2', 'bread/t3', 'bread/t4', 'bread/t5']
 rewards = []
 
 for folder in folders:
     file_name = 'Baselines/SAC-vanilla/models/'+ args.env + '/' + folder + '/data.pkl'
-    rewards.append(pickle.load(open(file_name, 'rb'))['reward'])
+    rewards.append(pickle.load(open(file_name, 'rb'))['reward'][:999])
 
 rewards = np.array(rewards)
 
-ms, ss = np.mean(rewards, axis=0), np.std(rewards, axis=0)/np.sqrt(5)
-ms = savgol_filter(ms, 5, 2)
-ss = savgol_filter(ss, 5, 2)
+ms, ss = np.mean(rewards, axis=0), np.std(rewards, axis=0)/np.sqrt(len(folders))
+ms = savgol_filter(ms, 50, 10)
+ss = savgol_filter(ss, 50, 10)
 
 x = range(len(rewards[0]))
 plt.fill_between(x, ms+ss, ms-ss, color='black', alpha=0.2)
-plt.plot(x, ms, 'k--')
+plt.plot(x, ms, 'k-')
 
 
-folders = ['t1', 't2', 't3', 't4', 't5']
+# folders = ['t1', 't2', 't3', 't4', 't5']
+folders = ['milk/t1', 'milk/t2', 'milk/t3', 'milk/t4', 'milk/t5', 'can/t1', 'can/t2', 'can/t3', 'can/t4', 'can/t5', 'bread/t1', 'bread/t2', 'bread/t3', 'bread/t4', 'bread/t5']
 rewards = []
 
 for folder in folders:
     file_name = 'Baselines/SAC-waypoints/models/'+ args.env + '/' + folder + '/data.pkl'
-    rewards.append(pickle.load(open(file_name, 'rb'))['reward'])
+    rewards.append(pickle.load(open(file_name, 'rb'))['reward'][:999])
 
 rewards = np.array(rewards)
 
-ms, ss = np.mean(rewards, axis=0), np.std(rewards, axis=0)/np.sqrt(5)
-ms = savgol_filter(ms, 5, 2)
-ss = savgol_filter(ss, 5, 2)
+ms, ss = np.mean(rewards, axis=0), np.std(rewards, axis=0)/np.sqrt(len(folders))
+ms = savgol_filter(ms, 50, 10)
+ss = savgol_filter(ss, 50, 10)
 
 x = range(len(rewards[0]))
 plt.fill_between(x, ms+ss, ms-ss, color='red', alpha=0.2)
-plt.plot(x, ms, 'r--')
+plt.plot(x, ms, 'r-')
 
-folders = ['t1', 't2', 't3', 't4', 't5']
+# folders = ['t1', 't2', 't3', 't4', 't5']
+folders = ['milk/t1', 'milk/t2', 'milk/t3', 'milk/t4', 'milk/t5', 'can/t1', 'can/t2', 'can/t3', 'can/t4', 'can/t5', 'bread/t1', 'bread/t2', 'bread/t3', 'bread/t4', 'bread/t5']
 rewards = []
 
 for folder in folders:
     file_name = 'Baselines/PPO-vanilla/models/'+ args.env + '/' + folder + '/data.pkl'
-    rewards.append(pickle.load(open(file_name, 'rb'))['reward'])
+    rewards.append(pickle.load(open(file_name, 'rb'))['reward'][:999])
 
 rewards = np.array(rewards)
 
-ms, ss = np.mean(rewards, axis=0), np.std(rewards, axis=0)/np.sqrt(5)
-ms = savgol_filter(ms, 5, 2)
-ss = savgol_filter(ss, 5, 2)
+ms, ss = np.mean(rewards, axis=0), np.std(rewards, axis=0)/np.sqrt(len(folders))
+ms = savgol_filter(ms, 50, 10)
+ss = savgol_filter(ss, 50, 10)
 
 x = range(len(rewards[0]))
 plt.fill_between(x, ms+ss, ms-ss, color='green', alpha=0.2)
-plt.plot(x, ms, 'g--')
+plt.plot(x, ms, 'g-')
 
 
-folders = ['t1', 't2', 't3', 't4', 't5']
+# folders = ['t1', 't2', 't3', 't4', 't5']
+folders = ['milk/t1', 'milk/t2', 'milk/t3', 'milk/t4', 'milk/t5', 'can/t1', 'can/t2', 'can/t3', 'can/t4', 'can/t5', 'bread/t1', 'bread/t2', 'bread/t3', 'bread/t4', 'bread/t5']
 rewards = []
 
 for folder in folders:
     file_name = 'Baselines/PPO-waypoints/models/'+ args.env + '/' + folder + '/data.pkl'
-    rewards.append(pickle.load(open(file_name, 'rb'))['reward'])
+    rewards.append(pickle.load(open(file_name, 'rb'))['reward'][:999])
 
 rewards = np.array(rewards)
 
-ms, ss = np.mean(rewards, axis=0), np.std(rewards, axis=0)/np.sqrt(5)
-ms = savgol_filter(ms, 5, 2)
-ss = savgol_filter(ss, 5, 2)
+ms, ss = np.mean(rewards, axis=0), np.std(rewards, axis=0)/np.sqrt(len(folders))
+ms = savgol_filter(ms, 50, 10)
+ss = savgol_filter(ss, 50, 10)
 
 x = range(len(rewards[0]))
 plt.fill_between(x, ms+ss, ms-ss, color='cyan', alpha=0.2)
-plt.plot(x, ms, 'c--')
+plt.plot(x, ms, 'c-')
 
 plt.title(args.env)
 plt.ylabel('reward')
 plt.xlabel('episodes')
 
-# plt.savefig(args.env + '.png')
+plt.savefig(args.env + '.png')
+plt.savefig(args.env + '.svg')
 plt.show()
 
 

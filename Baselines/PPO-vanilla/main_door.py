@@ -82,7 +82,7 @@ def train(args):
         initialization_noise=None,
         single_object_mode=2,
         object_type=args.object,
-        use_latch=False,
+        use_latch=args.use_latch,
     )
 
     # add dimensions to env_action_space if you also want to rotate the end-effector
@@ -237,8 +237,9 @@ def train(args):
         save_data['episode'].append(i_episode)
         save_data['reward'].append(episode_reward)
         pickle.dump(save_data, open(save_name + '/data.pkl', 'wb'))
+        ppo_agent.save(save_name + '/models')
 
-        if i_episode==599:
+        if i_episode==args.num_episodes:
             break
 
 
@@ -258,6 +259,8 @@ if __name__ == '__main__':
     p.add_argument('--object', type=str, default='test')
     p.add_argument('--num_wp', type=int, default=5)
     p.add_argument('--render', action='store_true', default=False)
+    p.add_argument('--use_latch', action='store_true', default=False)
+    p.add_argument('--num_episodes', type=int, default=599)
     args = p.parse_args()
     train(args)
     

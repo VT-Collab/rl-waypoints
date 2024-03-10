@@ -1,0 +1,5 @@
+- task=Lift
+- num_wp=2
+- render=False
+- task.task.epoch_wp=200
+- run_name=dir_test

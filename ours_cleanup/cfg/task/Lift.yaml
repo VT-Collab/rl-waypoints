@@ -1,0 +1,21 @@
+name: Lift
+
+env:
+  robot: 'Panda'
+  state_dim: 4
+  use_latch: False
+  wp_steps: 50
+  gripper_steps: 10
+  
+
+task:
+  action_space: 0.5
+  batch_size: 30
+  epoch_wp: 200
+
+  exploration_epoch: 75
+  ensemble_sampling_epoch: 100
+  averaging_noise_epoch: 175
+  rand_reset_epoch: 150
+
+  num_eval: 100
