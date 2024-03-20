@@ -137,7 +137,6 @@ for i_episode in itertools.count(1):
 
         if args.render:
             env.render()    # toggle this when we don't want to render
-            input()
 
     
         action = agent.select_action(state)  # Sample action from policy
