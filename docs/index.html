@@ -157,7 +157,7 @@
               Existing approaches to reinforcement learning often frame this problem as a Markov decision process, and learn a policy (or a hierarchy of policies) to complete the task.
               These policies reason over hundreds of fine-grained actions that the robot arm needs to take: e.g., moving slightly to the right or rotating the end-effector a few degrees.
               But the manipulation tasks that we want robots to perform can often be broken down into a small number of high-level motions: e.g., reaching an object or turning a handle.
-              In this paper we therefore propose a \textit{waypoint-based} approach for model-free reinforcement learning.
+              In this paper we therefore propose a waypoint-based approach for model-free reinforcement learning.
               Instead of learning a low-level policy, the robot now learns a trajectory of waypoints, and then interpolates between those waypoints using existing controllers.
               Our key novelty is framing this waypoint-based setting as a sequence of multi-armed bandits: each bandit problem corresponds to one waypoint along the robot's motion.
               We theoretically show that an ideal solution to this reformulation has lower regret bounds than standard frameworks.
@@ -203,11 +203,10 @@
       <div class="is-vcentered interpolation-panel">
         <div class="content has-text-justified">
           <p style = "font-size: 18px">
-            We frame model-free reinforcement learning as continuous multi-arm bandits, where each bandit problem corresponds to one waypoint along the robot's learned trajectory. 
-            The lower bounds for the regret for this multi-arm bandit setting derived in the manuscript show that waypoint based reinforcement learning is linear in time complexity, i.e, the time needed to train for a given task increases linearly with the increase in the number of waypoints needed to solve the task.
+            We frame model-free reinforcement learning as continuous multi-arm bandit problem. Each bandit problem corresponds to one waypoint along the robot's learned trajectory. 
+            The lower bounds on the regret for this multi-arm bandit setting derived in the manuscript show that waypoint based reinforcement learning is linear in time complexity, i.e, the time needed to train for a given task increases linearly with the increase in the number of waypoints needed to solve the task.
             <br>
-            The robot arm learns where to place the next waypoint to maximize its reward by solving a multi-arm bandit problem. Once the robot has learned the correct placement for a waypoint, i.e., the robot has achieved the maximum possible reward for the placement of waypoint i, we freeze the learned models for that waypoint. To learn the next waypoint, the robot rolls out the trajectory for waypoints 1 to i using the saved models and then repeats the learning process for waypoint i+1. 
-           
+            The robot arm learns to place the next waypoint to maximize its reward by solving a multi-arm bandit problem. Once the robot has learnedto correctly place a waypoint, i.e., the robot has achieved the maximum possible reward for a given waypoint, we freeze the learned models for that waypoint. To learn the next waypoint, the robot rolls out the trajectory for waypoints 1 to i using the saved models and then repeats the learning process for waypoint i+1. 
           </p>
         </div>
       </div>
