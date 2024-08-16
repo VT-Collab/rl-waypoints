@@ -66,7 +66,7 @@
           </div>
 
           <div class="is-size-5 publication-authors">
-            <span class="author-block">Virginia Tech</span>
+            <span class="author-block">Collab, Virginia Tech</span>
             <br>
             <span class="brmod">Accepted at IEEE International Conference on Intelligent Robot Systems (IROS) 2024</span>
           </div>
@@ -129,9 +129,9 @@
         <div class="column has-text-centered">
           <div class="content">
             <h2 class="subtitle has-text-centered">
-              <strong>Robot Learning to play Air Hockey with 15 seconds of training data</strong>
+              <strong>Robot opening a drawer with a policy trained using our approach</strong>
             </h2>
-            <video autoplay muted loop width="1080">
+            <video autoplay muted loop width="360">
               <source src="./static/resources/intro.mp4" type="video/mp4">
             </video>
 
@@ -203,33 +203,17 @@
       <div class="is-vcentered interpolation-panel">
         <div class="content has-text-justified">
           <p style = "font-size: 18px">
-            Stable-BC leverages offline demonstrations provided by experts to learn a behavior cloned policy that is robust to covariate shift. We model the covariate shift in the robot and environment states as a linearized dynamical system. When this dynamical system is stable, the robot's learned behavior locally converges towards the behavior of the human demonstrations, thus mitigating covariate shift. However, only stabilizing this dynamical system does not guarantee that the robot will solve the task successfully. We therefore train the robot to match the expert's demonstrations using the standard behavior cloning loss function, and then add a second loss that stabilizes the dynamical system. This leads to a learned policy that performs the task successfully while also converging towards the expert behaviors.
+            We frame model-free reinforcement learning as continuous multi-arm bandits, where each bandit problem corresponds to one waypoint along the robot's learned trajectory. 
+            The lower bounds for the regret for this multi-arm bandit setting derived in the manuscript show that waypoint based reinforcement learning is linear in time complexity, i.e, the time needed to train for a given task increases linearly with the increase in the number of waypoints needed to solve the task.
+            <br>
+            The robot arm learns where to place the next waypoint to maximize its reward by solving a multi-arm bandit problem. Once the robot has learned the correct placement for a waypoint, i.e., the robot has achieved the maximum possible reward for the placement of waypoint i, we freeze the learned models for that waypoint. To learn the next waypoint, the robot rolls out the trajectory for waypoints 1 to i using the saved models and then repeats the learning process for waypoint i+1. 
+           
           </p>
         </div>
       </div>
   </div>
   </div>
 
-  <!-- <div class="columns is-centered">
-    <div class="column is-half">
-      <h2 class="title is-2" style="text-align: center;">Algorithm and Implementation</h2>
-      <tr>
-        <td>
-          <br>
-          <div class="columns is-centered has-text-centered">
-            <img src="./static/resources/algorithm.png" style="width: 80%;"></img>
-          </div>
-        </td>
-      </tr>
-      <div class="is-vcentered interpolation-panel">
-        <div class="content has-text-justified">
-          <p style = "font-size: 18px">
-            A summary of Stable-BC algorithm. The robot assumes access to the demonstrated state-action pairs and its own dynamics. If the robot has access to the environment dynamics, i.e. how the environment state evolves given the robot state, the environment state and the robot's actions, we use Equation (7) from the manuscript to train the robot's policy. However, if the robot does not know the environment dynamics (which is more often the case), we leverage the bounded stability and Equation (11) to learn a policy robust to covariate shift. The policy of the robot is a fully connected MLP initialized with random weights. The policy is optimized using ADAM optimizer with a learning rate of 0.001.
-          </p>
-        </div>
-      </div>
-  </div>
-  </div> -->
 
 </section>
 
@@ -239,17 +223,14 @@
     <div class="container is-max-desktop">
       <div class="columns is-centered has-text-centered">
         <div class="column is-full-width">
-          <h2 class="title is-2">Interactive Driving Simulation</h2>
-          <div class="columns is-centered has-text-centered">
-            <img src="./static/resources/sim1_preview.png" style="width: 50%;"></img>
-          </div>
+          <h2 class="title is-2">Benchmark Simulations</h2>
           <div class="content has-text-justified">
             <p>
-              This simulation involves two vehicles trying to cross an intersection. One car is controlled by a simulated human while the other is an autonomous agent. The goal of the autonomous car is to reach the goal position while avoiding collision with the simulated human driver. Below we show some behaviors executed by the autonomous agent using the policies learned using BC and Stable-BC.
+              We evaluate the performance of our proposed approach in Robosuite, a simulated robot environment with a set of standard manipulation tasks for robot arms. Across these benchmark manipulation tasks, we compare the performance of out approach to that of standard reinforcement learning algorithms SAC and PPO as well as extended versions of these standard algorithms SAC-wp and PPO-wp. Below we show a video comparing the performance of Ours to that of SAC (the best performning baseline). The detailed resluts and comparisons with other baselines are discussed in the manuscript.
             </p>
           </div>
           <video autoplay muted loop width="1080">
-            <source src="./static/resources/sim1_video.mp4" type="video/mp4">
+            <source src="./static/resources/sims.mp4" type="video/mp4">
           </video>
         </div>
       </div>
@@ -257,26 +238,6 @@
     <!--/ Simulation 1. -->
 </section>
 
-<section class="hero teaser">
-  <div class="hero-body">
-    <!-- Simulation 2. -->
-    <div class="container is-max-desktop">
-      <div class="columns is-centered has-text-centered">
-        <div class="column is-full-width">
-          <h2 class="title is-2">Point Mass Simulation with Visual Observations</h2>
-          <div class="content has-text-justified">
-            <p>
-              In this simulation, we evaluate our approach for visual learning settings. The robot receives an image with the goal location as an observation of the enviornment. The robot needs to figure out the correct actions that will lead it to reach the goal location. Below we show example input images and the behavior of the robot executed be the policies learned using BC and Stable-BC.
-            </p>
-          </div>
-          <video autoplay muted loop width="1080">
-            <source src="./static/resources/sim2_video.mp4" type="video/mp4">
-          </video>
-        </div>
-      </div>
-    </div>
-    <!--/ Simulation 2. -->
-</section>
 
 <section class="hero teaser">
   <div class="hero-body">
@@ -284,100 +245,23 @@
     <div class="container is-max-desktop">
       <div class="columns is-centered has-text-centered">
         <div class="column is-full-width">
-          <h2 class="title is-2">Air Hockey Experiments</h2>
+          <h2 class="title is-2">Real-World Experiments</h2>
           <div class="content has-text-justified">
             <p>
-              In this experiment, a 7DoF Franka Emika robot arm learns to play a simplified game of air hockey from human demonstrations. The participants use a 2DoF joystick to control the position of the robot on the air hockey table. Each participant is given a practice time of 2 minutes before starting to provide the demonstrations. The demonstrations from each participant includes data collected over ~2.5 minutes of play time. The data is recorded at a frequency of 20 Hz, generating ~3000 datapoints in ~2.5 minutes of play. The snippets of the participants playing air hockey to provide demonstrations to the robot are shown below.
-            </p>
-        </div>
-      </div>
-    </div>
-
-    <div class="container">
-      <div id="results-carousel" class="carousel results-carousel">
-        <div class="item">
-          <video poster="" id="1" autoplay  muted loop   height="100%">
-            <source src="./static/resources/user_1.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-        <div class="item">
-          <video poster="" id="2" autoplay  muted loop  height="100%">
-            <source src="./static/resources/user_3.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-        <div class="item">
-          <video poster="" id="3" autoplay  muted loop  height="100%">
-            <source src="./static/resources/user_4.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-        <div class="item">
-          <video poster="" id="4" autoplay  muted loop  height="100%">
-            <source src="./static/resources/user_5.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-        <div class="item">
-          <video poster="" id="5" autoplay  muted loop  height="100%">
-            <source src="./static/resources/user_6.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-        <div class="item">
-          <video poster="" id="6" autoplay  muted loop  height="100%">
-            <source src="./static/resources/user_7.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-        <div class="item">
-          <video poster="" id="7" autoplay  muted loop  height="100%">
-            <source src="./static/resources/user_8.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-        <div class="item">
-          <video poster="" id="8" autoplay  muted loop  height="100%">
-            <source src="./static/resources/user_9.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-        <div class="item">
-          <video poster="" id="9" autoplay  muted loop  height="100%">
-            <source src="./static/resources/user_10.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-        <div class="item">
-          <video poster="" id="10" autoplay  muted loop  height="100%">
-            <source src="./static/resources/user_11.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-      </div>
-    </div>
-    <br>
-    <br>
-    <div class="container is-max-desktop">
-      <div class="columns is-centered has-text-centered">
-        <div class="column is-full-width">
-          <div class="content has-text-justified">
-            <p>
-              The robot has access to its own state and the state of the puck on the air hockey table, but it does not have access to the dynamics of the puck, i.e., how the motion of the puck will change given the robot's actions. We train the policies for BC and Stable-BC using substets of data from the demonstrations collected from the users. Across 15 seconds, 60 seconds and 120 seconds of data, we see that Stable-BC hits the puck more times and has a better performance than BC.
+              To evaluate if our proposed algorihtm can be applied to real world settings, i.e. trainig from scratch in the real world, we train a 7 DoF Franka Emika robot arm to perform two tasks in the real world. The first task is similar to the task in the simulation environment where the robot needs to pick up a block placed on a table. In the sencond task, the robot needs to open a drawer placed in its workspace. In this real world setting, we compare the performance of our proposed approach to that of the best performing baseline from the simulation SAC. The videos for the performance of the robot across both the tasks are shown below.
             </p>
             <h2 class="subtitle has-text-centered">
-              <strong>60 seconds of training data</strong>
+              <strong>Picking-up a Block</strong>
             </h2>
             <video autoplay muted loop width="1080">
-              <source src="./static/resources/1200_video.mp4" type="video/mp4">
+              <source src="./static/resources/pick_robot.mp4" type="video/mp4">
             </video>
 
             <h2 class="subtitle has-text-centered">
-              <strong>120 seconds of training data</strong>
+              <strong>Opening a Drawer</strong>
             </h2>
             <video autoplay muted loop width="1080">
-              <source src="./static/resources/2400_video.mp4" type="video/mp4">
+              <source src="./static/resources/drawer_robot.mp4" type="video/mp4">
             </video>
         </div>
       </div>
@@ -388,45 +272,15 @@
 </section>
 
 
-<!-- <section class="section">
-  <div class="container is-max-desktop">
-
-    <div class="columns is-centered">
-
-      <div class="column">
-        <div class="content">
-          <h2 class="subtitle has-text-centered">
-            <strong>60 Seconds of Data</strong> 
-          </h2>
-          <video id="dollyzoom" autoplay controls muted loop playsinline height="100%">
-            <source src="./static/resources/2400_video.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-      </div>
-      <div class="column">
-        <div class="content">
-          <h2 class="subtitle has-text-centered">
-            <strong>60 Seconds of Data</strong> 
-          </h2>
-          <video id="dollyzoom" autoplay controls muted loop playsinline height="100%">
-            <source src="./static/resources/2400_video.mp4"
-                    type="video/mp4">
-          </video>
-        </div>
-      </div>
-  </div>
-</section> -->
-
 
 
 <section class="section" id="BibTeX">
   <div class="container is-max-desktop content">
     <h2 class="title">BibTeX</h2>
-    <pre><code>@article{mehta2024stable,
-      title={Stable-BC: Controlling Covariate Shift with Stable Behavior Cloning},
-      author={Mehta, Shaunak A and Ciftci, Yusuf Umut and Ramachandran, Balamurugan and Bansal, Somil and Losey, Dylan P},
-      journal={arXiv preprint arXiv:2408.06246},
+    <pre><code>@article{mehta2024waypoint,
+      title={Waypoint-Based Reinforcement Learning for Robot Manipulation Tasks},
+      author={Mehta, Shaunak A and Habibian, Soheil and Losey, Dylan P},
+      journal={arXiv preprint arXiv:2403.13281},
       year={2024}
     }</code></pre>
   </div>
